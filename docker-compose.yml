@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   # 1. PostgreSQL Database Service
   postgres:
@@ -20,7 +18,7 @@ services:
 
   # 2. n8n Workflow Engine Service
   n8n:
-   image: n8nio/n8n:latest # Orchestration layer [cite: 39]
+    image: n8nio/n8n:latest # Orchestration layer [cite: 39]
     restart: always
     environment:
       # n8n Host/Protocol for correct webhook generation
