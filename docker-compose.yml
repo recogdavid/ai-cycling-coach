@@ -1,0 +1,66 @@
+version: '3.7'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres:
+    [cite_start]image: postgres:15-alpine # Production-ready, as per spec [cite: 40]
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # Persistent storage for database data
+      - ${DATA_DIR}/postgres:/var/lib/postgresql/data
+      # Initialisation script (runs on first launch)
+      - ./scripts/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
+    # Internal network only access
+    expose:
+      - ${POSTGRES_PORT}
+
+  # 2. n8n Workflow Engine Service
+  n8n:
+    [cite_start]image: n8nio/n8n:latest # Orchestration layer [cite: 39]
+    restart: always
+    environment:
+      # n8n Host/Protocol for correct webhook generation
+      N8N_HOST: ${N8N_HOST}
+      N8N_PROTOCOL: ${N8N_PROTOCOL}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      # Database connection for storing application data
+      DB_TYPE: postgres
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRES_USER: ${POSTGRES_USER}
+      DB_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Environment to store sensitive API credentials
+      GENERIC_TIMEZONE: Europe/London # Adjust timezone as needed
+    volumes:
+      # Persistent storage for n8n's internal data and credential store [cite: 249]
+      - ${DATA_DIR}/n8n:/home/node/.n8n
+      # Mount local workflows directory
+      - ./workflows:/home/node/.n8n/workflows 
+    depends_on:
+      - postgres
+    # Internal port for proxying
+    expose:
+      - ${N8N_PORT}
+
+  # 3. Nginx Reverse Proxy Service
+  nginx:
+    [cite_start]image: nginx:alpine # Web Server and Reverse Proxy [cite: 43]
+    restart: always
+    ports:
+      # Expose standard HTTPS and HTTP ports
+      - "80:80"
+      - "443:443"
+    volumes:
+      # This is where you will mount your actual nginx configuration later,
+      # specifically for SSL termination (HTTPS) and proxying to n8n 
+      - ${DATA_DIR}/nginx/conf:/etc/nginx/conf.d:ro 
+      # Mount SSL certs here later
+      # - ${DATA_DIR}/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - n8n

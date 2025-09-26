@@ -1,0 +1,13 @@
+# Environment variables (Crucial for security!)
+.env
+
+# Docker
+*.log
+volumes/
+*.bak
+.DS_Store
+
+# n8n
+# This is a good practice if n8n were to produce local files, 
+# but we are storing workflows in the 'workflows' directory for Git management
+# /home/node/.n8n/
