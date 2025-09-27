@@ -20,6 +20,7 @@ services:
   n8n:
     image: n8nio/n8n:latest # Orchestration layer [cite: 39]
     restart: always
+    user: "0"  
     environment:
       # n8n Host/Protocol for correct webhook generation
       N8N_HOST: ${N8N_HOST}
@@ -28,7 +29,7 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       # Database connection for storing application data
-      DB_TYPE: postgres
+      DB_TYPE: postgresdb
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_DATABASE: ${POSTGRES_DB}
       DB_POSTGRES_USER: ${POSTGRES_USER}
