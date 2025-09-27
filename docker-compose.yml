@@ -28,17 +28,21 @@ services:
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_RUNNERS_ENABLED: 'true'
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'  
       # Database connection for storing application data
       DB_TYPE: postgresdb
-      DB_POSTGRES_HOST: postgres
-      DB_POSTGRES_DATABASE: ${POSTGRES_DB}
-      DB_POSTGRES_USER: ${POSTGRES_USER}
-      DB_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_DATABASE: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SQLITE_POOL_SIZE: 1  
       # Environment to store sensitive API credentials
       GENERIC_TIMEZONE: Europe/London # Adjust timezone as needed
+      INDOOR_PLATFORMS_SUPPORTED: zwift,trainerroad,rouvy  
     volumes:
       # Persistent storage for n8n's internal data and credential store [cite: 249]
-      - ${DATA_DIR}/n8n:/home/node/.n8n
+      - ${DATA_DIR}/n8n:/root/.n8n
       # Mount local workflows directory
       - ./workflows:/home/node/.n8n/workflows 
     depends_on:
