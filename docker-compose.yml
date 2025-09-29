@@ -20,7 +20,6 @@ services:
   n8n:
     image: n8nio/n8n:latest # Orchestration layer [cite: 39]
     restart: always
-    user: "0"  
     environment:
       # n8n Host/Protocol for correct webhook generation
       N8N_HOST: ${N8N_HOST}
@@ -30,7 +29,7 @@ services:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_RUNNERS_ENABLED: 'true'
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'  
-      # Database connection for storing application data
+      N8N_USER_FOLDER: /home/node/.n8n      
       DB_TYPE: postgresdb
       DB_HOST: postgres
       DB_DATABASE: ${POSTGRES_DB}
@@ -42,7 +41,7 @@ services:
       INDOOR_PLATFORMS_SUPPORTED: zwift,trainerroad,rouvy  
     volumes:
       # Persistent storage for n8n's internal data and credential store [cite: 249]
-      - ${DATA_DIR}/n8n:/root/.n8n
+      - ${DATA_DIR}/n8n:/home/node/.n8n
       # Mount local workflows directory
       - ./workflows:/home/node/.n8n/workflows 
     depends_on:
@@ -60,10 +59,18 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # This is where you will mount your actual nginx configuration later,
-      # specifically for SSL termination (HTTPS) and proxying to n8n 
-      - ${DATA_DIR}/nginx/conf:/etc/nginx/conf.d:ro 
-      # Mount SSL certs here later
+      - ./nginx.conf:/etc/nginx/nginx.conf 
+      - ./ssl:/etc/nginx/ssl
+      - ./certbot/www:/var/www/certbot
       # - ${DATA_DIR}/nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - n8n
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    command: certonly --webroot -w /var/www/certbot -d dabosch.fit --email david@recognition-circular.org --rsa-key-size 4096 --agree-tos --non-interactive
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./ssl:/etc/letsencrypt/live/dabosch.fit 
+    depends_on:
+      - nginx
