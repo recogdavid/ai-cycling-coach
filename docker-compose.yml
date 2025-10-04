@@ -1,76 +1,62 @@
 services:
-  # 1. PostgreSQL Database Service
   postgres:
-    image: postgres:15-alpine # Production-ready, as per spec [cite: 40]
-    restart: always
+    image: postgres:15-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: n8n
+      POSTGRES_DB: n8n
     volumes:
-      # Persistent storage for database data
-      - ${DATA_DIR}/postgres:/var/lib/postgresql/data
-      # Initialisation script (runs on first launch)
-      - ./scripts/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
-    # Internal network only access
-    expose:
-      - ${POSTGRES_PORT}
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 2. n8n Workflow Engine Service
   n8n:
-    image: n8nio/n8n:latest # Orchestration layer [cite: 39]
-    restart: always
+    image: n8nio/n8n:latest
+    restart: unless-stopped
     environment:
-      # n8n Host/Protocol for correct webhook generation
-      N8N_HOST: ${N8N_HOST}
-      N8N_PROTOCOL: ${N8N_PROTOCOL}
-      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
-      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-      N8N_RUNNERS_ENABLED: 'true'
-      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'  
-      N8N_USER_FOLDER: /home/node/.n8n      
       DB_TYPE: postgresdb
-      DB_HOST: postgres
-      DB_DATABASE: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_SQLITE_POOL_SIZE: 1  
-      # Environment to store sensitive API credentials
-      GENERIC_TIMEZONE: Europe/London # Adjust timezone as needed
-      INDOOR_PLATFORMS_SUPPORTED: zwift,trainerroad,rouvy  
-    volumes:
-      # Persistent storage for n8n's internal data and credential store [cite: 249]
-      - ${DATA_DIR}/n8n:/home/node/.n8n
-      # Mount local workflows directory
-      - ./workflows:/home/node/.n8n/workflows 
-    depends_on:
-      - postgres
-    # Internal port for proxying
-    expose:
-      - ${N8N_PORT}
-
-  # 3. Nginx Reverse Proxy Service
-  nginx:
-    image: nginx:alpine # Web Server and Reverse Proxy [cite: 43]
-    restart: always
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: n8n
+      DB_POSTGRESDB_DATABASE: n8n
+      N8N_BASIC_AUTH_ACTIVE: 'true'
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin
+      N8N_ENCRYPTION_KEY: supersecretkey
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      GENERIC_TIMEZONE: Europe/London
     ports:
-      # Expose standard HTTPS and HTTP ports
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf 
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot/www:/var/www/certbot
-      # - ${DATA_DIR}/nginx/certs:/etc/nginx/certs:ro
+      - ./certbot/conf:/etc/letsencrypt
     depends_on:
       - n8n
+
   certbot:
     image: certbot/certbot
-    restart: unless-stopped
-    command: certonly --webroot -w /var/www/certbot -d dabosch.fit --email david@recognition-circular.org --rsa-key-size 4096 --agree-tos --non-interactive
+    entrypoint: >
+      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h; done"
     volumes:
       - ./certbot/www:/var/www/certbot
-      - ./ssl:/etc/letsencrypt/live/dabosch.fit 
-    depends_on:
-      - nginx
+      - ./certbot/conf:/etc/letsencrypt
+
