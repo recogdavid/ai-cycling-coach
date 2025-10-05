@@ -3,16 +3,19 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: n8n
-      POSTGRES_PASSWORD: n8n
-      POSTGRES_DB: n8n
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
+      - ./scripts/create_user_db.sql:/docker-entrypoint-initdb.d/create_user_db.sql
+      - ./scripts/init_db.sh:/docker-entrypoint-initdb.d/init_db.sh
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U n8n"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    expose:
+      - "5432"
 
   n8n:
     image: n8nio/n8n:latest
@@ -21,24 +24,24 @@ services:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
-      DB_POSTGRESDB_USER: n8n
-      DB_POSTGRESDB_PASSWORD: n8n
-      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_DATABASE: aicoach_db
+      DB_POSTGRESDB_USER: aicoach_user
+      DB_POSTGRESDB_PASSWORD: D4bosch!609
+
       N8N_BASIC_AUTH_ACTIVE: 'true'
-      N8N_BASIC_AUTH_USER: admin
-      N8N_BASIC_AUTH_PASSWORD: admin
-      N8N_ENCRYPTION_KEY: supersecretkey
-      N8N_HOST: localhost
+      N8N_BASIC_AUTH_USER: n8n_admin
+      N8N_BASIC_AUTH_PASSWORD: D4bosch!609
+      N8N_ENCRYPTION_KEY: wS98OAwFKHuYVnE8qzU0HRT8ndrR15Xaroot
+      N8N_HOST: dabosch.fit
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
+      N8N_PROTOCOL: https
       GENERIC_TIMEZONE: Europe/London
-    ports:
-      - "5678:5678"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./data/n8n:/home/node/.n8n
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -47,16 +50,22 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
     depends_on:
       - n8n
 
   certbot:
-    image: certbot/certbot
-    entrypoint: >
-      sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h; done"
+    image: certbot/certbot:latest
+    container_name: ai-cycling-coach-certbot
     volumes:
-      - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot;
+        sleep 12h;
+      done"
 
