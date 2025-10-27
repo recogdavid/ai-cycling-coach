@@ -56,11 +56,3 @@ This is an early prototype with significant limitations:
 - ❌ Manual setup required (no installer)
 
 ---
-
-## 🎓 Why This Project?
-
-**Personal learning goals:**
-- Learn full-stack development (databases, APIs, AI integration)
-- Understand training science and periodization
-- Build something useful for the cycling community
-- Explore privacy-preserving AI appli
