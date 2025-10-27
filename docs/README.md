@@ -3,7 +3,7 @@
 ## Getting Started
 
 - [Setup Guide](setup.md) - Installation and configuration
-- [User Guide](user-guide.md) - How to use current features
+- [User Guide](user-guide.md) - How to use current features (for self-hosting - not for end-users)
 - [Architecture](architecture.md) - System design and technical details
 
 ## Quick Links
