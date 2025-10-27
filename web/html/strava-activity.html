@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Activity Detail – AI Cycling Coach</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f7fb;margin:0;padding:2rem}
+  .wrap{max-width:900px;margin:0 auto}
+  .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:1.25rem}
+  .row{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+  .muted{color:#6b7280}
+  h1{margin:0 0 .75rem}
+  .pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:.8rem}
+  dl{display:grid;grid-template-columns: 150px 1fr;gap:.4rem .75rem;margin:0}
+  dt{color:#6b7280}
+  dd{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Activity Detail</h1>
+  <div class="card">
+    <div class="pill">Strava</div>
+    <p class="muted">Activity ID: <strong>1234567890</strong> (Strava)</p>
+    <div class="row">
+      <div>
+        <dl>
+          <dt>Title</dt><dd>Intervals 4×8 @ 105% FTP</dd>
+          <dt>Date</dt><dd>2025-10-16 18:02</dd>
+          <dt>Distance</dt><dd>31.0 km</dd>
+          <dt>Moving Time</dt><dd>1:08:14</dd>
+          <dt>Avg Power</dt><dd>248 W</dd>
+        </dl>
+      </div>
+      <div>
+        <dl>
+          <dt>NP</dt><dd>262 W</dd>
+          <dt>TSS</dt><dd>84</dd>
+          <dt>Max Power</dt><dd>812 W</dd>
+          <dt>Elevation Gain</dt><dd>420 m</dd>
+          <dt>Device</dt><dd>Garmin Edge</dd>
+        </dl>
+      </div>
+    </div>
+    <p class="muted">Source: Strava activity detail. Metrics like NP/TSS are computed locally from Strava data.</p>
+  </div>
+</div>
+</body>
+</html>
+<footer style="text-align:center;font-size:.85rem;color:#6b7280;margin-top:2rem">
+  Data via Strava API
+  <img src="/assets/strava-wordmark.svg" alt="Strava wordmark" style="height:12px;vertical-align:middle;margin-left:.25rem">
+</footer>
+

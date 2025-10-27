@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Coaching & FTP Feedback – AI Cycling Coach</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f7fb;margin:0;padding:2rem}
+  .wrap{max-width:900px;margin:0 auto}
+  .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:1.25rem;margin-bottom:1rem}
+  .muted{color:#6b7280}
+  h1{margin:0 0 .75rem}
+  .grid{display:grid;gap:1rem;grid-template-columns:repeat(2,1fr)}
+  .pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;background:#ecfeff;color:#155e75;font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Coaching & FTP Feedback</h1>
+
+  <div class="card">
+    <div class="pill">Derived from Strava</div>
+    <h3>Current FTP</h3>
+    <p><strong>275 W</strong> (set by athlete)</p>
+    <h3>Suggested FTP</h3>
+    <p><strong>290 W</strong> <span class="muted">(+5.5%)</span></p>
+    <p class="muted">Based on best 90-min NP across last 10 rides from Strava.</p>
+  </div>
+
+  <div class="card">
+    <div class="pill">AI Feedback</div>
+    <p><strong>Next week:</strong> keep 2× threshold sessions (4×8 & 3×12 @ 100–105% FTP), 1 endurance ride 2–3 h @ Z2, optional tempo 60–75 min.</p>
+    <p class="muted">Generated locally via Ollama (Mistral) using Strava data and internal metrics.</p>
+  </div>
+
+  <div class="card">
+    <div class="pill">Controls</div>
+    <p>
+      <button disabled>Accept Suggested FTP (290 W)</button>
+      <span class="muted"> · This would call <code>/api/athletes/:id/ftp/accept</code></span>
+    </p>
+  </div>
+</div>
+</body>
+</html>
+<footer style="text-align:center;font-size:.85rem;color:#6b7280;margin-top:2rem">
+  Data via Strava API
+  <img src="/assets/strava-wordmark.svg" alt="Strava wordmark" style="height:12px;vertical-align:middle;margin-left:.25rem">
+</footer>
+

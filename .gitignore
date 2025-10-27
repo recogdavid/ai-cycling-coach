@@ -2,6 +2,7 @@
 .env
 .env.*
 personal-access-token
+
 # Docker-related
 *.log
 volumes/
@@ -21,3 +22,4 @@ Thumbs.db
 # n8n internal state
 # Workflows are tracked separately in the `workflows/` directory
 /home/node/.n8n/
+*.bkup.conf
