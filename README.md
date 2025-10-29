@@ -27,6 +27,12 @@ AI Cycling Coach aims to provide cyclists with adaptive, intelligent training gu
 - ✅ Personalized workouts that respect your goals and availability
 - ✅ Local AI inference (Ollama + Mistral) - no external API costs or data sharing
 
+## 🚧 In Development
+
+- ❌ Web UI
+- ❌ Workout file export (.FIT/.ZWO coming soon)
+- ❌ Workout execution tracking
+- ❌ Limited Strava API access (pending quota approval)
 ---
 
 ## 🏗️ Technology Stack
@@ -44,15 +50,5 @@ AI Cycling Coach aims to provide cyclists with adaptive, intelligent training gu
 
 ---
 
-## 🚧 What's Not Ready Yet
-
-This is an early prototype with significant limitations:
-
-- ❌ No web UI (API and database only)
-- ❌ Single-user only (not multi-tenant)
-- ❌ No workout file export (.FIT/.ZWO coming soon)
-- ❌ No workout execution tracking
-- ❌ Limited Strava API access (pending quota approval)
-- ❌ Manual setup required (no installer)
 
 ---
