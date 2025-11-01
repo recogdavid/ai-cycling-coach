@@ -1,51 +1,173 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Connect Strava – AI Cycling Coach</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f6f7fb;margin:0;padding:2rem}
-  .wrap{max-width:720px;margin:0 auto}
-  .card{background:#fff;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:1.25rem;margin-bottom:1rem}
-  .muted{color:#6b7280}
-  h1{margin:0 0 .75rem}
-  code{background:#f3f4f6;padding:.2rem .35rem;border-radius:6px}
-  .strava-btn{display:inline-flex;align-items:center;gap:.6rem;padding:.75rem 1.1rem;border-radius:10px;background:#FC4C02;color:#fff;font-weight:600;text-decoration:none;font-size:1rem}
-  .strava-btn svg{height:20px;width:auto;fill:#fff}
-  .strava-btn:hover{opacity:.9}
-  footer{margin-top:2rem;font-size:.85rem;color:#6b7280;text-align:center}
-  footer img{height:12px;vertical-align:middle;margin-left:.25rem}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect with Strava - AI Cycling Coach</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logos/dabosch-icon.svg">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 500px;
+      background: white;
+      padding: 3rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      text-align: center;
+    }
+    
+    .logo {
+      margin-bottom: 2rem;
+    }
+    
+    .logo img {
+      height: 60px;
+      width: auto;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.8rem;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    
+    /* Official Strava Connect Button */
+    .strava-connect-btn {
+      display: inline-block;
+      margin: 1.5rem 0;
+      transition: transform 0.2s;
+    }
+    
+    .strava-connect-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .strava-connect-btn img {
+      height: 48px;
+      width: auto;
+    }
+    
+    .features {
+      text-align: left;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .features h3 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+    
+    .features ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .features li {
+      padding: 0.5rem 0;
+      color: #555;
+    }
+    
+    .features li:before {
+      content: "✓ ";
+      color: #10b981;
+      font-weight: bold;
+      margin-right: 0.5rem;
+    }
+    
+    .privacy-note {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      border-radius: 4px;
+      text-align: left;
+      font-size: 0.85rem;
+      color: #92400e;
+    }
+    
+    .privacy-note strong {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #78350f;
+    }
+    
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+      font-size: 0.75rem;
+      color: #999;
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Connect Strava</h1>
-
-  <div class="card">
-    <p>Connect your Strava account to allow AI Cycling Coach to read your rides and generate training feedback.</p>
-    <p class="muted">Scopes requested: <code>read, activity:read_all, profile:read_all</code></p>
-
-    <p>
-      <a class="strava-btn" href="/webhook/api/strava/connect?athlete_id=9">
-        <svg viewBox="0 0 90 20"><path fill="#fff" d="M6.1,0L0,10.5h3.9l2.2-4l2.2,4h3.9L6.1,0z M17.2,0l-4.8,9.1l-1.8-3.4h-3.5l5.3,9.9h3.1L23.1,0H17.2z M29.3,0 l-6.1,10.5h3.9l2.2-4l2.2,4h3.9L29.3,0z"/></svg>
-        Connect with Strava
-      </a>
+  <div class="container">
+    <div class="logo">
+      <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+    </div>
+    
+    <h1>Connect Your Strava Account</h1>
+    <p class="subtitle">
+      AI Cycling Coach uses your Strava activity data to create personalized training plans 
+      and provide intelligent coaching feedback.
     </p>
-
-    <p class="muted">After authorizing, you’ll be redirected to <code>/webhook/api/strava/callback</code>.</p>
+    
+    <!-- Official Strava Connect Button -->
+    <a href="https://dabosch.fit/webhook/api/strava/connect?athlete_id=9" class="strava-connect-btn">
+      <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Connect with Strava">
+    </a>
+    
+    <div class="features">
+      <h3>What you'll get:</h3>
+      <ul>
+        <li>AI-generated weekly training plans</li>
+        <li>Personalized workout recommendations</li>
+        <li>FTP tracking and suggestions</li>
+        <li>Performance feedback on completed rides</li>
+        <li>Interval-based workouts with power zones</li>
+      </ul>
+    </div>
+    
+    <div class="privacy-note">
+      <strong>🔒 Your Privacy Matters</strong>
+      All data processing happens on our secure server. We use LOCAL AI (no external AI services). 
+      Your Strava data is never shared with third parties and is stored encrypted. 
+      You can disconnect at any time.
+    </div>
+    
+    <footer>
+      <div>By connecting, you agree to allow AI Cycling Coach to access your Strava activity data</div>
+      <div style="margin-top: 0.5rem;">
+        <a href="https://www.strava.com/settings/api" target="_blank" style="color: #FC4C02; text-decoration: none;">
+          Manage Strava API Access
+        </a>
+      </div>
+    </footer>
   </div>
-
-  <div class="card">
-    <h3>Disconnect</h3>
-    <p class="muted">You can revoke access anytime from Strava → Settings → My Apps → “AI Cycling Coach”.</p>
-  </div>
-
-  <footer>
-    Data via Strava API
-    <img src="/assets/strava-wordmark.svg" alt="Strava wordmark">
-  </footer>
-</div>
 </body>
 </html>
-

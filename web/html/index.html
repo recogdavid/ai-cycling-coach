@@ -3,100 +3,203 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Coach – FTP Portal</title>
+  <title>Dave's AI Cycling Coach - Personalized Training</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logos/dabosch-icon.svg">
   <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f6f7f9;
-      color: #222;
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    main {
-      max-width: 420px;
-      margin: 4rem auto;
-      background: white;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    }
-    h1 { font-size: 1.4rem; margin-top: 0; }
-    .stat { margin: 1rem 0; }
-    .stat span.value { font-weight: bold; }
-    button {
-      background: #2563eb;
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
       color: white;
-      border: none;
-      padding: 0.6rem 1.2rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    header {
+      text-align: center;
+      padding: 4rem 0 2rem;
+    }
+    
+    .logo {
+      margin-bottom: 2rem;
+    }
+    
+    .logo img {
+      height: 80px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .tagline {
+      font-size: 1.2rem;
+      opacity: 0.95;
+      margin-bottom: 3rem;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
+    }
+    
+    .btn {
+      padding: 1rem 2rem;
       border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-block;
     }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
+    
+    .btn-primary {
+      background: white;
+      color: #667eea;
     }
-    #message {
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 2px solid white;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin: 4rem 0;
+    }
+    
+    .feature {
+      background: rgba(255,255,255,0.1);
+      padding: 2rem;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .feature h3 {
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    
+    .feature p {
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    
+    footer {
+      text-align: center;
+      padding: 3rem 0 2rem;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      margin-top: 4rem;
+    }
+    
+    .strava-footer {
+      display: inline-block;
       margin-top: 1rem;
-      font-weight: bold;
+    }
+    
+    .strava-footer img {
+      height: 40px;
+      opacity: 0.9;
+      transition: opacity 0.2s;
+    }
+    
+    .strava-footer:hover img {
+      opacity: 1;
     }
   </style>
 </head>
 <body>
-  <main>
-    <h1>FTP Summary</h1>
-    <div class="stat">Current FTP: <span id="current" class="value">–</span> W</div>
-    <div class="stat">Suggested FTP: <span id="suggested" class="value">–</span> W</div>
-    <div class="stat">Change: <span id="delta" class="value">–</span>%</div>
-    <button id="acceptBtn">Accept FTP</button>
-    <div id="message"></div>
-  </main>
-
-  <script>
-    const athleteId = 1;  // static for now; can make dynamic later
-    const apiBase = "https://dabosch.fit/webhook/api/athletes";
-
-    async function loadSummary() {
-      try {
-        const res = await fetch(`${apiBase}/summary?athlete_id=${athleteId}`);
-        const data = await res.json();
-
-        document.getElementById("current").textContent = data.current_ftp ?? "–";
-        document.getElementById("suggested").textContent = data.suggested_ftp ?? "–";
-        document.getElementById("delta").textContent =
-          data.delta_pct !== null && data.delta_pct !== undefined
-            ? `${data.delta_pct}`
-            : "–";
-
-        document.getElementById("message").textContent = "";
-      } catch (err) {
-        document.getElementById("message").textContent = "Error loading summary.";
-        console.error(err);
-      }
-    }
-
-    async function acceptFtp() {
-      const btn = document.getElementById("acceptBtn");
-      btn.disabled = true;
-      try {
-        const res = await fetch(`${apiBase}/ftp/accept`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ athlete_id: athleteId })
-        });
-        const data = await res.json();
-        document.getElementById("message").textContent = data.message || "Updated!";
-        await loadSummary();
-      } catch (err) {
-        document.getElementById("message").textContent = "Error updating FTP.";
-        console.error(err);
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    document.getElementById("acceptBtn").addEventListener("click", acceptFtp);
-    loadSummary();
-  </script>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach" style="filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
+      </div>
+      <h1>Personalized Cycling Training</h1>
+      <p class="tagline">AI-powered plans based on your Strava data</p>
+      
+      <div class="cta-buttons">
+        <a href="/strava-connect.html" style="display: inline-block; transition: transform 0.2s;">
+          <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Connect with Strava" style="height: 48px; width: auto;">
+        </a>
+        <a href="/dashboard.html" class="btn btn-secondary">View Dashboard</a>
+      </div>
+    </header>
+    
+    <div class="features">
+      <div class="feature">
+        <h3>📊 AI-Generated Plans</h3>
+        <p>Personalized 7-day training plans using Joe Friel's methodology and your FTP data.</p>
+      </div>
+      
+      <div class="feature">
+        <h3>💪 FTP Tracking</h3>
+        <p>Automatic FTP recommendations based on your recent performance and power data.</p>
+      </div>
+      
+      <div class="feature">
+        <h3>⚡ Structured Workouts</h3>
+        <p>Detailed intervals with power zones, from recovery rides to VO2 max efforts.</p>
+      </div>
+      
+      <div class="feature">
+        <h3>🎯 Polarized Training</h3>
+        <p>Evidence-based 80/20 training: balance easy rides with high-intensity intervals.</p>
+      </div>
+      
+      <div class="feature">
+        <h3>🔒 Privacy-First</h3>
+        <p>All AI runs locally. Your Strava data never leaves our infrastructure.</p>
+      </div>
+      
+      <div class="feature">
+        <h3>🧠 Smart Coaching</h3>
+        <p>AI analyzes completed rides and provides actionable feedback.</p>
+      </div>
+    </div>
+    
+    <footer>
+      <div style="margin-bottom: 1.5rem; opacity: 0.9; font-size: 0.9rem;">
+        Open Source • Local AI (Ollama + Mistral) • Self-Hosted
+      </div>
+      
+      <a href="https://www.strava.com" target="_blank" class="strava-footer">
+        <img src="/assets/strava/api_logo_pwrdBy_strava_stack_white.svg" alt="Powered by Strava">
+      </a>
+      
+      <div style="margin-top: 2rem; font-size: 0.85rem; opacity: 0.6;">
+        <a href="https://github.com/recogdavid/ai-cycling-coach" target="_blank" style="color: white; text-decoration: none;">
+          View on GitHub
+        </a>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
 

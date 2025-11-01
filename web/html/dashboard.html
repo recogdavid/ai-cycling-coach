@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dave's AI Cycling Coach - Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logos/dabosch-icon.svg">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    
+    /* App Logo */
+    .app-logo {
+      margin-bottom: 1rem;
+    }
+    
+    .app-logo img {
+      height: 50px;
+      width: auto;
+    }
+    
+    /* Strava Badge */
+    .strava-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .strava-badge:hover {
+      transform: translateY(-1px);
+    }
+    
+    .strava-badge img {
+      height: 30px;
+      width: auto;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: white;
+      font-size: 1.2rem;
+    }
+    
+    .workouts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .workout-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-left: 4px solid;
+      transition: transform 0.2s;
+    }
+    
+    .workout-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+    }
+    
+    .workout-card.recovery, .workout-card.activerecovery { border-left-color: #6b7280; }
+    .workout-card.endurance { border-left-color: #10b981; }
+    .workout-card.tempo { border-left-color: #f59e0b; }
+    .workout-card.sweetspot { border-left-color: #f97316; }
+    .workout-card.threshold { border-left-color: #ef4444; }
+    .workout-card.vo2max { border-left-color: #8b5cf6; }
+    .workout-card.anaerobiccapacity { border-left-color: #ec4899; }
+    .workout-card.sprints { border-left-color: #dc2626; }
+    .workout-card.restday { border-left-color: #d1d5db; }
+    
+    .workout-date {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+    
+    .workout-type {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 0.5rem;
+    }
+    
+    .workout-description {
+      color: #555;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    
+    .workout-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+    }
+    
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .stat-label {
+      color: #999;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+    
+    .stat-value {
+      color: #222;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    
+    .message {
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    
+    .message.success { border-left: 4px solid #10b981; }
+    .message.error { border-left: 4px solid #ef4444; }
+    
+    .empty-state {
+      background: white;
+      padding: 3rem;
+      border-radius: 12px;
+      text-align: center;
+      color: #666;
+    }
+    
+    .empty-state h2 {
+      color: #222;
+      margin-bottom: 1rem;
+    }
+    
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      padding: 1.5rem;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .footer-content {
+      color: white;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-strava img {
+      height: 28px;
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <!-- Strava Badge (top right) -->
+      <a href="https://www.strava.com" target="_blank" class="strava-badge" title="Powered by Strava">
+        <img src="/assets/strava/api_logo_pwrdBy_strava_stack_orange.svg" alt="Powered by Strava">
+      </a>
+      
+      <!-- App Logo -->
+      <div class="app-logo">
+        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+      </div>
+      
+      <p class="subtitle">Your personalized training dashboard</p>
+      
+      <div class="actions">
+        <button id="generateBtn" onclick="generatePlan()">Generate New Training Plan</button>
+        <button onclick="location.href='/portal/index.html'">View FTP Summary</button>
+      </div>
+      
+      <div id="headerMessage"></div>
+    </header>
+    
+    <div id="loading" class="loading" style="display:none;">
+      Loading your training plan...
+    </div>
+    
+    <div id="workoutsContainer" class="workouts-grid"></div>
+    
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <h2>No Training Plan Yet</h2>
+      <p>Click "Generate New Training Plan" to create your personalized weekly schedule</p>
+    </div>
+    
+    <footer>
+      <div class="footer-content">
+        Privacy-First Training • All AI Processing Local • Your Data Stays Secure
+      </div>
+      <div class="footer-strava">
+        <img src="/assets/strava/api_logo_pwrdBy_strava_stack_white.svg" alt="Powered by Strava">
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const athleteId = 9;
+    const apiBase = 'https://dabosch.fit/webhook';
+    
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+    }
+    
+    function getWorkoutClass(type) {
+      return type.toLowerCase().replace(/\s+/g, '');
+    }
+    
+    async function loadWorkouts() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('workoutsContainer').innerHTML = '';
+      document.getElementById('emptyState').style.display = 'none';
+      
+      try {
+        const response = await fetch(`${apiBase}/athletes/workouts?athlete_id=${athleteId}`);
+        let workouts = await response.json();
+        
+        if (!Array.isArray(workouts)) {
+          workouts = [workouts];
+        }
+        
+        document.getElementById('loading').style.display = 'none';
+        
+        if (!workouts || workouts.length === 0) {
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+        
+        renderWorkouts(workouts);
+        
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        showMessage('Error loading workouts: ' + error.message, 'error');
+      }
+    }
+    
+    function renderWorkouts(workouts) {
+      const container = document.getElementById('workoutsContainer');
+      
+      workouts.forEach(workout => {
+        const card = document.createElement('div');
+        card.className = `workout-card ${getWorkoutClass(workout.workout_type || 'endurance')}`;
+        
+        card.innerHTML = `
+          <div class="workout-date">${formatDate(workout.scheduled_date)}</div>
+          <div class="workout-type">${workout.workout_type || 'Workout'}</div>
+          <div class="workout-description">${workout.description || 'No description'}</div>
+          <div class="workout-stats">
+            <div class="stat">
+              <span class="stat-label">Duration</span>
+              <span class="stat-value">${workout.duration_minutes || 0} min</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">TSS</span>
+              <span class="stat-value">${workout.target_tss || 0}</span>
+            </div>
+          </div>
+        `;
+        
+        container.appendChild(card);
+      });
+    }
+    
+    async function generatePlan() {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating... (90-120 sec)';
+      
+      showMessage('Generating your personalized training plan...', 'success');
+      
+      try {
+        const response = await fetch(`${apiBase}/generate-plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ athlete_id: athleteId })
+        });
+        
+        if (response.ok) {
+          showMessage('Training plan generated successfully!', 'success');
+          setTimeout(() => loadWorkouts(), 1000);
+        } else {
+          showMessage('Error generating plan. Please try again.', 'error');
+        }
+        
+      } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate New Training Plan';
+      }
+    }
+    
+    function showMessage(text, type) {
+      const container = document.getElementById('headerMessage');
+      container.innerHTML = `<div class="message ${type}">${text}</div>`;
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+    
+    loadWorkouts();
+  </script>
+</body>
+</html>

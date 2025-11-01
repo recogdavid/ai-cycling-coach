@@ -1,0 +1,270 @@
+{
+  "name": "RAG Training Plan Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a181f48a-c6d9-40ff-9649-993742f3d3d6",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dedde843-4b64-46ce-874c-da391a3f437c",
+              "name": "athlete_id",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "fb042d47-77d7-403d-8c28-6a7c8fff4625",
+              "name": "ftp",
+              "value": 250,
+              "type": "number"
+            },
+            {
+              "id": "90f9d30b-8eee-4599-b877-344860242150",
+              "name": "goal",
+              "value": "\"endurance building\"",
+              "type": "string"
+            },
+            {
+              "id": "7d26f536-6fff-4c3a-b023-97a7019e8ed6",
+              "name": "weekly_hours",
+              "value": 8,
+              "type": "number"
+            },
+            {
+              "id": "3a289827-3fa8-46d2-a708-f0ac27756733",
+              "name": "name",
+              "value": "\"Test Athlete\"",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d407718f-293e-4b1e-a212-3441afa651a8",
+      "name": "Mock Athlete Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine what knowledge we need based on athlete goal\n\nconst athlete = $input.first().json;\nconst goal = athlete.goal.toLowerCase();\n\n// Create a query based on their goal\nlet query = \"\";\n\nif (goal.includes(\"ftp\") || goal.includes(\"threshold\")) {\n  query = \"weekly training structure for FTP improvement with threshold and sweet spot workouts\";\n} else if (goal.includes(\"endurance\")) {\n  query = \"endurance building workout structures and long ride formats\";\n} else {\n  query = \"general fitness training plan structure with varied workout types\";\n}\n\nreturn [{\n  json: {\n    ...athlete,\n    rag_query: query,\n    top_k: 10  // Get more results for variety\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "5ad3e5ed-8122-4a1c-92ae-b72194299cfc",
+      "name": "Generate RAG Query"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.rag_query;\n\nconst embedResponse = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'http://host.docker.internal:11434/api/embeddings',\n  headers: { 'Content-Type': 'application/json' },\n  body: {\n    model: 'nomic-embed-text',\n    prompt: query\n  },\n  json: true\n});\n\nconst embedding = embedResponse.embedding;\n\nif (!embedding || embedding.length !== 768) {\n  throw new Error('Failed to generate embedding');\n}\n\nreturn [{\n  json: {\n    ...$input.first().json,\n    embedding: JSON.stringify(embedding)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "d2022315-4501-4440-8704-f1dbff845ce3",
+      "name": "Generate Embedding"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  content,\n  source,\n  ROUND((1 - (embedding <=> '{{ $json.embedding }}'::vector))::numeric, 3) as similarity\nFROM training_knowledge\nWHERE 1 - (embedding <=> '{{ $json.embedding }}'::vector) > 0.5\nORDER BY embedding <=> '{{ $json.embedding }}'::vector\nLIMIT {{ $json.top_k }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        0
+      ],
+      "id": "9f61bf80-83ab-411c-ba91-70c6dce248e7",
+      "name": "Query Knowledge Base",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const athlete = $('Generate Embedding').first().json;\nconst knowledgeResults = $input.all();\n\n// Format retrieved knowledge\nconst formattedKnowledge = knowledgeResults.map((item, index) => {\n  return `${index + 1}. [${item.json.source}] (${(item.json.similarity * 100).toFixed(0)}% relevant)\n${item.json.content}\n`;\n}).join('\\n---\\n');\n\nreturn [{\n  json: {\n    athlete: athlete,\n    knowledge: formattedKnowledge,\n    knowledge_count: knowledgeResults.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "ee46282f-a693-4da2-aa11-003d998a509e",
+      "name": "Format Knowledge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst athlete = data.athlete;\n\nconst systemPrompt = `You are an expert cycling coach creating a personalized 7-day training plan.\n\nATHLETE PROFILE:\n- Name: ${athlete.name}\n- FTP: ${athlete.ftp}W  \n- Goal: ${athlete.goal}\n- Weekly Hours Available: ${athlete.weekly_hours}\n\nRETRIEVED TRAINING KNOWLEDGE (Use these proven structures):\n${data.knowledge}\n\nYOUR TASK:\nCreate a complete 7-day training plan using the workout structures from the knowledge above.\n\nFor EACH day, provide:\n1. Day name (Monday - Sunday)\n2. Workout name (creative and specific, e.g., \"FTP Builder - 3x15min Progressive\")\n3. Workout type (Threshold, Sweet Spot, VO2 Max, Endurance, Recovery, Rest)\n4. Duration in minutes\n5. Target TSS\n6. Detailed description including:\n   - Power targets (% FTP and actual watts for this athlete)\n   - Cadence targets\n   - Complete interval structure with warm-up, main set, cool-down\n   - Recovery between intervals\n   - Coaching cues from the knowledge base\n\nCRITICAL RULES:\n- Use varied workout structures from the knowledge base (don't repeat formats)\n- Follow hard/easy principles (never more than 2 consecutive hard days)\n- Include at least 1 rest day\n- Include at least 1 recovery ride\n- Total weekly TSS should be 400-550 for this athlete\n- Reference proven structures: \"Following the 3x15min format\" or \"Similar to classic 2x20 protocol\"\n- Always include cadence targets for each interval\n\nReturn the plan as a JSON array with this structure:\n[\n  {\n    \"day\": \"Monday\",\n    \"workout_name\": \"...\",\n    \"workout_type\": \"...\",\n    \"duration_minutes\": ...,\n    \"target_tss\": ...,\n    \"description\": \"...\",\n    \"intervals\": [\n      {\"type\": \"warmup\", \"duration\": 900, \"power_watts\": 125, \"power_pct\": 50, \"cadence\": 90},\n      {\"type\": \"interval\", \"duration\": 900, \"power_watts\": 243, \"power_pct\": 97, \"cadence\": 95},\n      ...\n    ]\n  },\n  ...\n]`;\n\nreturn [{\n  json: {\n    system_prompt: systemPrompt,\n    athlete: athlete\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "a6a54b60-f376-4688-9221-dbe55af12ae9",
+      "name": "Build AI Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ {\n  model: \"qwen2.5:7b\",\n  prompt: $json.system_prompt,\n  stream: false,\n  format: \"json\"\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        0
+      ],
+      "id": "538b8bd6-45ef-4297-9984-1c2f925d7b95",
+      "name": "HTTP Request to Ollama"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the Ollama response (it's in an array)\nconst ollamaResponse = $input.first().json;\n\n// Extract the actual response text\nlet responseText = '';\nif (Array.isArray(ollamaResponse)) {\n  responseText = ollamaResponse[0].response;\n} else {\n  responseText = ollamaResponse.response || ollamaResponse.output || '';\n}\n\nconsole.log('AI Response length:', responseText.length);\n\n// Parse the JSON\nlet planData;\ntry {\n  planData = JSON.parse(responseText);\n} catch (e) {\n  throw new Error('Failed to parse AI response as JSON: ' + e.message);\n}\n\n// Convert from object format to array format\nlet planArray = [];\n\nif (Array.isArray(planData)) {\n  // Already an array, perfect!\n  planArray = planData;\n} else if (typeof planData === 'object') {\n  // Convert object with day names to array\n  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\n  \n  planArray = dayOrder.map(day => {\n    if (planData[day]) {\n      return {\n        day: day,\n        ...planData[day]\n      };\n    }\n    return null;\n  }).filter(x => x !== null);\n}\n\n// Calculate total TSS\nconst totalTSS = planArray.reduce((sum, workout) => sum + (workout.target_tss || 0), 0);\n\nconsole.log(`Generated ${planArray.length} workouts with total TSS: ${totalTSS}`);\n\nreturn [{\n  json: {\n    training_plan: planArray,\n    total_tss: totalTSS,\n    num_workouts: planArray.length,\n    generated_at: new Date().toISOString(),\n    athlete_id: 1\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "2c899486-fcf5-484d-bc5b-c560210e988c",
+      "name": "Parse AI Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Mock Athlete Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Athlete Data": {
+      "main": [
+        [
+          {
+            "node": "Generate RAG Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate RAG Query": {
+      "main": [
+        [
+          {
+            "node": "Generate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Query Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Format Knowledge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Knowledge": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request to Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request to Ollama": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "034acbbc-6957-4043-93c5-1eb62e746e33",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332"
+  },
+  "id": "6tAO0JFLjVCLqyLp",
+  "tags": []
+}

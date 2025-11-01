@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTP Summary - AI Cycling Coach</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logos/dabosch-icon.svg">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f6f7f9;
+      color: #222;
+      margin: 0;
+      padding: 2rem;
+    }
+    
+    main {
+      max-width: 500px;
+      margin: 2rem auto;
+      background: white;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    
+    /* Strava Badge */
+    .strava-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      text-decoration: none;
+      transition: transform 0.2s;
+    }
+    
+    .strava-badge:hover {
+      transform: translateY(-1px);
+    }
+    
+    .strava-badge img {
+      height: 26px;
+      width: auto;
+    }
+    
+    /* App Logo */
+    .logo {
+      margin-bottom: 1.5rem;
+    }
+    
+    .logo img {
+      height: 45px;
+      width: auto;
+    }
+    
+    h1 { 
+      font-size: 1.8rem;
+      margin-bottom: 2rem;
+      color: #667eea;
+    }
+    
+    .stat { 
+      margin: 1.5rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+    }
+    
+    .stat span.value {
+      font-weight: bold;
+      font-size: 1.5rem;
+      color: #667eea;
+    }
+    
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.875rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 1rem;
+      transition: all 0.2s;
+    }
+    
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-1px);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    #message {
+      margin-top: 1rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 0.75rem;
+      border-radius: 6px;
+    }
+    
+    #message.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    #message.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #eee;
+      font-size: 0.75rem;
+      color: #999;
+    }
+    
+    .nav-link {
+      display: inline-block;
+      margin-top: 1rem;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    
+    .nav-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <!-- Strava Badge -->
+    <a href="https://www.strava.com" target="_blank" class="strava-badge" title="Powered by Strava">
+      <img src="/assets/strava/api_logo_pwrdBy_strava_stack_orange.svg" alt="Powered by Strava">
+    </a>
+    
+    <!-- App Logo -->
+    <div class="logo">
+      <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+    </div>
+    
+    <h1>FTP Summary</h1>
+    
+    <div class="stat">
+      <span class="stat-label">Current FTP:</span>
+      <span id="current" class="value">–</span>
+    </div>
+    
+    <div class="stat">
+      <span class="stat-label">Suggested FTP:</span>
+      <span id="suggested" class="value">–</span>
+    </div>
+    
+    <div class="stat">
+      <span class="stat-label">Change:</span>
+      <span id="delta" class="value">–</span>
+    </div>
+    
+    <button id="acceptBtn">Accept New FTP</button>
+    <div id="message"></div>
+    
+    <div style="text-align: center;">
+      <a href="/dashboard.html" class="nav-link">← Back to Dashboard</a>
+    </div>
+    
+    <footer>
+      <div>FTP analysis based on Strava power data</div>
+    </footer>
+  </main>
+
+  <script>
+    const athleteId = 9;
+    const apiBase = "https://dabosch.fit/webhook/api/athletes";
+
+    async function loadSummary() {
+      try {
+        const res = await fetch(`${apiBase}/summary?athlete_id=${athleteId}`);
+        const data = await res.json();
+
+        document.getElementById("current").textContent = data.current_ftp ? data.current_ftp + " W" : "–";
+        document.getElementById("suggested").textContent = data.suggested_ftp ? data.suggested_ftp + " W" : "–";
+        
+        if (data.delta_pct !== null && data.delta_pct !== undefined) {
+          const deltaEl = document.getElementById("delta");
+          const deltaValue = data.delta_pct.toFixed(1);
+          deltaEl.textContent = `${data.delta_pct > 0 ? '+' : ''}${deltaValue}%`;
+          deltaEl.style.color = data.delta_pct > 0 ? '#10b981' : '#ef4444';
+        }
+      } catch (err) {
+        console.error(err);
+        showMessage("Error loading FTP data", "error");
+      }
+    }
+
+    document.getElementById("acceptBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("acceptBtn");
+      btn.disabled = true;
+      
+      try {
+        const res = await fetch(`${apiBase}/accept-ftp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ athlete_id: athleteId })
+        });
+        
+        if (res.ok) {
+          showMessage("✅ FTP updated successfully!", "success");
+          setTimeout(() => loadSummary(), 1000);
+        } else {
+          showMessage("❌ Error accepting FTP", "error");
+        }
+      } catch (err) {
+        showMessage("❌ " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    
+    function showMessage(text, type) {
+      const msg = document.getElementById("message");
+      msg.textContent = text;
+      msg.className = type;
+      setTimeout(() => msg.textContent = "", 5000);
+    }
+
+    loadSummary();
+  </script>
+</body>
+</html>

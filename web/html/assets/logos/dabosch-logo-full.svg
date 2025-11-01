@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 60">
+  <text x="10" y="45" font-size="40" font-family="Arial, sans-serif">🚴‍♂️</text>
+  <text x="60" y="28" font-size="20" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#667eea">
+    Dave's AI Cycling Coach
+  </text>
+  <text x="60" y="48" font-size="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" fill="#999">
+    Personalized Training
+  </text>
+</svg>
