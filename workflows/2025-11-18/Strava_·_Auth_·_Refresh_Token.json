@@ -1,0 +1,223 @@
+{
+  "createdAt": "2025-10-24T07:51:23.545Z",
+  "updatedAt": "2025-10-25T13:31:35.484Z",
+  "id": "GLRyoR8lo3OBjuTY",
+  "name": "Strava \u00b7 Auth \u00b7 Refresh Token",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4a31b7e0-38b2-40bd-b021-e1bee030340a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id,\n       strava_access_token,\n       strava_refresh_token,\n       extract(epoch FROM token_expires_at) AS expires_at\nFROM athletes\nWHERE id = 9;   -- your current active athlete\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "16ff90f8-3b38-4799-9462-7669f6cd7c06",
+      "name": "Load Athlete Token",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d62a22a4-bb76-4431-96d3-649ba8d2519a",
+              "leftValue": "={{ $json[\"expires_at\"] }}",
+              "rightValue": "={{ Math.floor(Date.now() / 1000) + 3600 }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "cd3a265a-79e4-4b78-ad69-c9f9ae75da0d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.strava.com/oauth/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "={{ $env.STRAVA_CLIENT_ID }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $env.STRAVA_CLIENT_SECRET }}"
+            },
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{ $node[\"Load Athlete Token\"].json[\"strava_refresh_token\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "edd1c76e-1067-4d6b-bc14-0d8ea5354da8",
+      "name": "HTTP Request",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE athletes\nSET\n  strava_access_token  = '{{ $json[\"access_token\"] }}',\n  strava_refresh_token = '{{ $json[\"refresh_token\"] }}',\n  token_expires_at     = to_timestamp({{ $json[\"expires_at\"] }})\nWHERE id = 9\nRETURNING id;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "f14855b0-7247-43b9-8b46-cedb41bd5c5c",
+      "name": "Save New Tokens",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Athlete Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Athlete Token": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Save New Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "79847d83-a03c-4798-9cde-f13f95be313e",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-10-24T07:51:23.545Z",
+      "updatedAt": "2025-10-24T07:51:23.545Z",
+      "role": "workflow:owner",
+      "workflowId": "GLRyoR8lo3OBjuTY",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,1171 @@
+{
+  "createdAt": "2025-11-01T13:17:17.047Z",
+  "updatedAt": "2025-11-15T10:51:39.941Z",
+  "id": "6tAO0JFLjVCLqyLp",
+  "name": "RAG Training Plan Generator",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-plan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        1000
+      ],
+      "id": "30822737-613b-4e97-904b-f8bfedc91a16",
+      "name": "Webhook",
+      "webhookId": "b1e3e1f8-ca2d-4f5b-8711-f21757a09274"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id as athlete_id,\n    name,\n    email,\n    effective_ftp_watts as ftp,\n    training_goal as goal,\n    weekly_hours_available as weekly_hours,\n    unavailable_days,\n    \n    -- Event training fields\n    training_goal_type,\n    training_phase,\n    phase_week,\n    target_event_date,\n    target_event_type,\n    \n    -- Calculate weeks to event (FIXED - no EXTRACT)\n    CASE \n        WHEN target_event_date IS NOT NULL \n        THEN GREATEST(0, CEIL((target_event_date - CURRENT_DATE)::numeric / 7))\n        ELSE NULL \n    END AS weeks_to_event\n    \nFROM athletes\nWHERE id = {{ $json.body.athlete_id }}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        176,
+        1000
+      ],
+      "id": "2e0304ff-51e3-4bc5-b788-b4bbec733e40",
+      "name": "Get Athlete Data",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all saved workouts from the loop that just finished\nconst savedWorkouts = $input.all().map(item => item.json);\n\n// Calculate total TSS by adding up all workout TSS values\nconst totalTSS = savedWorkouts.reduce((sum, workout) => {\n  return sum + (workout.target_tss || 0);\n}, 0);\n\n// Get basic info from first workout\nconst firstWorkout = savedWorkouts[0];\n\n// Return complete response\nreturn [{\n  json: {\n    success: true,\n    message: 'Training plan created successfully',\n    plan_id: firstWorkout.training_plan_id,\n    athlete_id: firstWorkout.athlete_id,\n    start_date: savedWorkouts[0].scheduled_date,\n    end_date: savedWorkouts[savedWorkouts.length - 1].scheduled_date,\n    workouts_created: savedWorkouts.length,\n    total_tss: totalTSS  // Now calculated from actual workouts\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        736
+      ],
+      "id": "63d8e3cf-05da-485f-982e-61d1cafa09d1",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE training_plans \nSET status = 'replaced'\nWHERE athlete_id = {{ $input.first().json.athlete_id }}\n  AND status = 'active';\n\nSELECT \n  {{ $input.first().json.athlete_id }} as athlete_id,\n  '{{ $input.first().json.name }}' as name,\n  {{ $input.first().json.ftp }} as ftp,\n  '{{ $input.first().json.goal }}' as goal,\n  {{ $input.first().json.weekly_hours }} as weekly_hours,\n  '{{ $input.first().json.unavailable_days }}'::text as unavailable_days;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        400,
+        1000
+      ],
+      "id": "1a6b30b7-09cc-4481-a134-0212fda08d90",
+      "name": "Deactivate Old Plans",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 4: DETERMINE WEEKLY STRATEGY\n// The \"brain\" - decides workout structure\n// ============================================\n\nconst athlete = $node[\"Get Athlete Data\"].json;\n\n// Helper function to calculate target TSS\nfunction calculateTargetTSS(weeklyHours, phase, weeksToEvent) {\n  const baseTSS = weeklyHours * 60; // 60 TSS per hour as baseline\n  \n  // Adjust based on phase\n  let multiplier = 1.0;\n  \n  if (phase === 'base') {\n    multiplier = 0.95; // Slightly lower intensity\n  } else if (phase === 'build') {\n    multiplier = 1.05; // Ramping up\n  } else if (phase === 'peak') {\n    multiplier = 1.10; // High load\n  } else if (phase === 'taper') {\n    // Taper reduces volume significantly\n    if (weeksToEvent === 1) {\n      multiplier = 0.35; // Race week - minimal volume\n    } else if (weeksToEvent === 2) {\n      multiplier = 0.70; // Pre-race week\n    }\n  }\n  \n  return Math.round(baseTSS * multiplier);\n}\n\n// Helper function to determine structure based on goal type and phase\nfunction determineStructure(goalType, phase, weeksToEvent) {\n  \n  // ========================================\n  // ONGOING TRAINING (No specific event)\n  // ========================================\n  if (goalType === 'ongoing') {\n    return {\n      high_intensity: 2,    // Threshold or Sweet Spot\n      endurance: 2,         // Long rides\n      recovery: 2,          // Easy days\n      rest: 1,\n      notes: 'Balanced ongoing training for general fitness'\n    };\n  }\n  \n  // ========================================\n  // BASE BUILDING (12-16 week program)\n  // ========================================\n  if (goalType === 'base_building') {\n    if (phase === 'base') {\n      return {\n        high_intensity: 1,  // Minimal intensity\n        tempo: 1,           // Some tempo work\n        endurance: 3,       // Lots of endurance\n        recovery: 1,\n        rest: 1,\n        notes: 'Base building: Focus on aerobic development'\n      };\n    } else if (phase === 'build') {\n      return {\n        high_intensity: 2,\n        tempo: 1,\n        endurance: 2,\n        recovery: 1,\n        rest: 1,\n        notes: 'Build phase: Adding intensity to base'\n      };\n    }\n  }\n  \n  // ========================================\n  // EVENT-SPECIFIC TRAINING\n  // ========================================\n  if (goalType === 'event_specific') {\n    \n    // 8+ weeks out: Base building\n    if (weeksToEvent >= 8) {\n      return {\n        high_intensity: 1,\n        tempo: 1,\n        endurance: 3,\n        recovery: 1,\n        rest: 1,\n        notes: `${weeksToEvent} weeks to event: Building aerobic base`\n      };\n    }\n    \n    // 6-7 weeks out: Early build\n    if (weeksToEvent >= 6) {\n      return {\n        high_intensity: 2,\n        endurance: 2,\n        tempo: 1,\n        recovery: 1,\n        rest: 1,\n        notes: `${weeksToEvent} weeks to event: Building intensity`\n      };\n    }\n    \n    // 4-5 weeks out: Peak build\n    if (weeksToEvent >= 4) {\n      return {\n        high_intensity: 2,\n        vo2max: 1,\n        endurance: 1,\n        recovery: 1,\n        rest: 2,\n        notes: `${weeksToEvent} weeks to event: Peak training`\n      };\n    }\n    \n    // 3 weeks out: Race-specific\n    if (weeksToEvent === 3) {\n      return {\n        threshold: 1,\n        sweet_spot: 1,\n        race_simulation: 1,\n        endurance: 1,\n        recovery: 1,\n        rest: 2,\n        notes: '3 weeks to event: Race-specific training'\n      };\n    }\n    \n    // 2 weeks out: Final intensity\n    if (weeksToEvent === 2) {\n      return {\n        vo2max: 1,\n        threshold: 1,\n        race_simulation: 1,\n        recovery: 2,\n        rest: 2,\n        notes: '2 weeks to event: Final hard week before taper'\n      };\n    }\n    \n    // Race week: Taper\n    if (weeksToEvent === 1) {\n      return {\n        opener: 2,        // Short, sharp openers\n        easy_spin: 2,     // Recovery spins\n        rest: 3,          // Lots of rest (including race day)\n        notes: 'RACE WEEK: Taper for peak performance'\n      };\n    }\n    \n    // Event is this week or passed\n    if (weeksToEvent <= 0) {\n      return {\n        recovery: 3,\n        easy_spin: 2,\n        rest: 2,\n        notes: 'Post-event recovery week'\n      };\n    }\n  }\n  \n  // Default fallback\n  return {\n    high_intensity: 2,\n    endurance: 2,\n    recovery: 2,\n    rest: 1,\n    notes: 'Standard balanced training'\n  };\n}\n\n// ============================================\n// MAIN STRATEGY DETERMINATION\n// ============================================\n\nconst strategy = {\n  athlete_id: athlete.athlete_id,\n  athlete_name: athlete.name || athlete.email,\n  \n  // Basic info\n  ftp: athlete.effective_ftp_watts || athlete.user_ftp_watts || 250,\n  weekly_hours: athlete.weekly_hours || 8,\n  goal: athlete.goal || 'General fitness',\n  \n  // Training type\n  training_goal_type: athlete.training_goal_type || 'ongoing',\n  training_phase: athlete.training_phase || 'base',\n  weeks_to_event: athlete.weeks_to_event_calc || athlete.weeks_to_event,\n  target_event_date: athlete.target_event_date,\n  target_event_type: athlete.target_event_type,\n  \n  // Unavailable days\n  unavailable_days: athlete.unavailable_days || [],\n  \n  // Calculate targets\n  target_tss: null,  // Will be calculated\n  min_tss: null,\n  max_tss: null,\n  \n  // Workout structure\n  structure: null,   // Will be determined\n  \n  // Planning metadata\n  plan_start_date: new Date().toISOString().split('T')[0],\n  plan_end_date: null,  // Will be calculated\n  \n  // Notes\n  notes: ''\n};\n\n// Determine the structure\nstrategy.structure = determineStructure(\n  strategy.training_goal_type,\n  strategy.training_phase,\n  strategy.weeks_to_event\n);\n\n// Calculate TSS targets\nstrategy.target_tss = calculateTargetTSS(\n  strategy.weekly_hours,\n  strategy.training_phase,\n  strategy.weeks_to_event\n);\n\nstrategy.min_tss = Math.round(strategy.target_tss * 0.90);\nstrategy.max_tss = Math.round(strategy.target_tss * 1.10);\n\n// Calculate plan end date (7 days from start)\nconst startDate = new Date(strategy.plan_start_date);\nconst endDate = new Date(startDate);\nendDate.setDate(endDate.getDate() + 6); // 7-day plan\nstrategy.plan_end_date = endDate.toISOString().split('T')[0];\n\n// Add structure notes to main notes\nstrategy.notes = strategy.structure.notes || strategy.notes;\n\n// ============================================\n// OUTPUT\n// ============================================\n\nreturn [{\n  json: strategy\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        1000
+      ],
+      "id": "12d6e010-28bb-4028-a352-641101e5fbcc",
+      "name": "Determine Weekly Strategy"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 5a: BUILD WEEK STRUCTURE PROMPT (SIMPLIFIED)\n// ============================================\n\nconst strategy = $node[\"Determine Weekly Strategy\"].json;\n\n// Build prompt as simple string (no complex formatting)\nconst prompt = \"You are a cycling coach. Create a weekly training plan. \" +\n  \"Athlete FTP: \" + strategy.ftp + \"W. \" +\n  \"Weekly hours: \" + strategy.weekly_hours + \". \" +\n  \"Goal: \" + strategy.goal + \". \" +\n  \"Training type: \" + strategy.training_goal_type + \". \" +\n  \"Phase: \" + strategy.training_phase + \". \" +\n  (strategy.weeks_to_event ? \"Weeks to event: \" + strategy.weeks_to_event + \". \" : \"\") +\n  \"Required structure: \" + JSON.stringify(strategy.structure) + \". \" +\n  \"Assign one workout type to each day Monday through Sunday. \" +\n  \"Use these types: Threshold, Sweet Spot, VO2 Max, Tempo, Endurance, Recovery, Rest. \" +\n  \"Mark unavailable days as Rest. \" +\n  \"Output ONLY valid JSON with this format: \" +\n  '{\"Monday\":\"Rest\",\"Tuesday\":\"Threshold\",\"Wednesday\":\"Recovery\",\"Thursday\":\"Sweet Spot\",\"Friday\":\"Recovery\",\"Saturday\":\"Endurance\",\"Sunday\":\"Endurance\"}';\n\nreturn [{\n  json: {\n    model: \"qwen2.5:7b\",\n    prompt: prompt,\n    stream: false,\n    format: \"json\",\n    options: {\n      temperature: 0.3\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        1000
+      ],
+      "id": "c7617b77-65a9-493a-a343-8e2f43c619b1",
+      "name": "Build AI Prompt - Plan Structure"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.format }}"
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.3 } }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ Boolean($json.stream) ? true : false }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1072,
+        1000
+      ],
+      "id": "90e8c05f-c9d9-4aa6-9f73-bdfc0256a5f5",
+      "name": "AI Plans Week Structure"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 5c: PARSE WEEK STRUCTURE\n// Extract workout assignments from AI response\n// ============================================\n\nconst aiResponse = $json.response;\n\n// Parse the JSON response\nlet weekStructure;\ntry {\n  weekStructure = JSON.parse(aiResponse);\n} catch (e) {\n  throw new Error(`Failed to parse AI response: ${e.message}`);\n}\n\n// Validate we have all 7 days\nconst requiredDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\nconst missingDays = requiredDays.filter(day => !weekStructure[day]);\n\nif (missingDays.length > 0) {\n  throw new Error(`AI response missing days: ${missingDays.join(', ')}`);\n}\n\n// Convert to array format for easier processing\nconst workoutAssignments = requiredDays.map((day, index) => ({\n  day: day,\n  day_of_week: index + 1, // 1=Monday, 7=Sunday\n  workout_type: weekStructure[day]\n}));\n\n// Pass through strategy data + workout assignments\nreturn [{\n  json: {\n    strategy: $node[\"Determine Weekly Strategy\"].json,\n    week_structure: weekStructure,\n    workout_assignments: workoutAssignments\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        1000
+      ],
+      "id": "00a11776-64e5-423b-8e8b-5d144b3cc01f",
+      "name": "Parse Week Structure"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1968,
+        1000
+      ],
+      "id": "fd0fa4d5-86fb-43bb-a3bf-a5f59356c99d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7a: BUILD RAG QUERY\n// Constructs search query for vector DB\n// ============================================\n\n// This runs ONCE PER WORKOUT (in a loop)\nconst workout = $json;\n\n// Skip RAG for Rest days\nif (workout.workout_type === 'Rest') {\n  return [{\n    json: {\n      ...workout,\n      rag_query: null,\n      skip_rag: true\n    }\n  }];\n}\n\n// Build a descriptive query for finding similar workouts\nconst ragQuery = `${workout.workout_type} cycling workout ${workout.duration_minutes} minutes ${workout.target_tss} TSS at ${workout.power_pct}% FTP indoor training intervals structured workout`;\n\nreturn [{\n  json: {\n    ...workout,\n    rag_query: ragQuery,\n    skip_rag: false\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        472
+      ],
+      "id": "adbc418a-0a10-4260-aeff-79a55482ff40",
+      "name": "Build RAG query"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7b: CREATE EMBEDDING\n// Adapted from existing workflow\n// ============================================\n\n// Skip if Rest day\nif ($json.skip_rag) {\n  return [{\n    json: {\n      ...$json,\n      embedding: null\n    }\n  }];\n}\n\nconst query = $json.rag_query;\n\n// Call Ollama embeddings API\nconst embedResponse = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'http://host.docker.internal:11434/api/embeddings',\n  headers: { 'Content-Type': 'application/json' },\n  body: {\n    model: 'nomic-embed-text',\n    prompt: query\n  },\n  json: true\n});\n\nconst embedding = embedResponse.embedding;\n\n// Validate embedding\nif (!embedding || embedding.length !== 768) {\n  throw new Error(`Failed to generate embedding for ${$json.workout_type} workout`);\n}\n\nreturn [{\n  json: {\n    ...$json,\n    embedding: JSON.stringify(embedding)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        472
+      ],
+      "id": "83ecca2e-aeab-4b26-81d2-039349c4be05",
+      "name": "Create embedding"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  content,\n  source,\n  ROUND((1 - (embedding <=> '{{ $json.embedding }}'::vector))::numeric, 3) as similarity\nFROM training_knowledge\nWHERE 1 - (embedding <=> '{{ $json.embedding }}'::vector) > 0.5\nORDER BY embedding <=> '{{ $json.embedding }}'::vector\nLIMIT 3;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2864,
+        544
+      ],
+      "id": "c4f78438-9ee9-49b2-8f96-f68f57c9d0ef",
+      "name": "Query Vector DB",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3312,
+        472
+      ],
+      "id": "c713ed83-6388-4ba3-b62c-26294406f112",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7d: BUILD WORKOUT PROMPT (WITH PROPER JSON ESCAPING)\n// ============================================\n\nconst data = $json;\n\n// Extract workout data\nconst workout = data.workout || data;\n\n// Handle Rest days\nif (workout.workout_type === 'Rest' || workout.skip_rag) {\n  return [{\n    json: {\n      workout: workout,\n      skip_generation: true,\n      description: 'Rest day - no workout',\n      intervals: []\n    }\n  }];\n}\n\n// Build context from RAG results\nlet context = '';\nif (data.rag_results && data.rag_results.length > 0) {\n  context = 'REFERENCE WORKOUTS (use these as inspiration):\\n\\n';\n  data.rag_results.forEach((result, idx) => {\n    context += `Example ${idx + 1}: ${result.content}\\n\\n`;\n  });\n}\n\n// Build the prompt (keep it simple and clean)\nconst prompt = `You are a professional cycling coach creating a detailed workout.\n\nWORKOUT REQUIREMENTS:\n- Athlete: ${workout.athlete_id}\n- Type: ${workout.workout_type}\n- Duration: ${workout.duration_minutes} minutes (${workout.duration_minutes * 60} seconds)\n- Target TSS: ${workout.target_tss}\n- Athlete FTP: ${workout.ftp}W\n- Target Power: ${workout.target_power_watts}W (${workout.power_pct}% FTP)\n- Target Cadence: ${workout.target_cadence} rpm\n\n${context}\n\nRULES:\n1. Total duration MUST equal ${workout.duration_minutes * 60} seconds\n2. Power targets around ${workout.target_power_watts}W\n3. Include warmup and cooldown\n4. All durations in seconds, power in watts\n\nOUTPUT FORMAT (JSON only):\n{\n  \"description\": \"Brief workout description\",\n  \"athlete\": \"athlete_id\"\n  \"intervals\": [\n    {\"type\": \"warmup\", \"duration\": 600, \"power_watts\": ${Math.round(workout.ftp * 0.65)}, \"power_pct\": 65, \"cadence\": 90},\n    {\"type\": \"interval\", \"duration\": 1200, \"power_watts\": ${workout.target_power_watts}, \"power_pct\": ${workout.power_pct}, \"cadence\": ${workout.target_cadence}},\n    {\"type\": \"cooldown\", \"duration\": 600, \"power_watts\": ${Math.round(workout.ftp * 0.60)}, \"power_pct\": 60, \"cadence\": 85}\n  ]\n}\n\nGenerate the workout:`;\n\n// Return with properly structured data for HTTP request\nreturn [{\n  json: {\n    model: 'qwen2.5:7b',\n    prompt: prompt,\n    stream: false,\n    format: 'json',\n    options: {\n      temperature: 0.3\n    },\n    // Also pass workout for later use\n    _workout: workout\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3536,
+        472
+      ],
+      "id": "d176426a-343b-4f1f-8431-6309f0ddb1a4",
+      "name": "Build Workout Prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7f: PARSE WORKOUT RESPONSE (FIXED)\n// ============================================\n\n// Get AI response from Generate Workout\nconst aiResponse = $json.response;\n\n// Try to get workout from the loop's original item\nlet workout = null;\n\n// Method 1: Check if current item has workout data\nif ($json.day) {\n  workout = $json;\n}\n\n// Method 2: Get from Build RAG Query (first node in loop)\nif (!workout) {\n  try {\n    const ragQuery = $('Build RAG query');\n    if (ragQuery && ragQuery.first()) {\n      const ragData = ragQuery.first().json;\n      if (ragData.day) {\n        workout = ragData;\n      }\n    }\n  } catch (e) {\n    console.log('Could not access Build RAG query:', e.message);\n  }\n}\n\n// Method 3: Get from the loop input\nif (!workout) {\n  const loopInput = $input.first();\n  if (loopInput && loopInput.json.day) {\n    workout = loopInput.json;\n  }\n}\n\nif (!workout) {\n  throw new Error('Cannot find workout data.');\n}\n\n// Handle Rest days\nif (!aiResponse || workout.workout_type === 'Rest') {\n  return [{\n    json: {\n      day: workout.day,\n      scheduled_date: workout.scheduled_date,\n      workout_type: 'Rest',\n      duration_minutes: 0,\n      target_tss: 0,\n      description: 'Rest day',\n      intervals: [],\n      athlete_id: workout.athlete_id  // FIXED: Use from workout\n    }\n  }];\n}\n\n// Parse AI response\nconst parsedWorkout = JSON.parse(aiResponse);\n\n// Return complete workout\nreturn [{\n  json: {\n    day: workout.day,\n    scheduled_date: workout.scheduled_date,\n    workout_type: workout.workout_type,\n    duration_minutes: workout.duration_minutes,\n    target_tss: workout.target_tss,\n    athlete_id: workout.athlete_id,  // FIXED: Use from workout, not parsedWorkout\n    description: parsedWorkout.description,\n    intervals: parsedWorkout.intervals || []\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4432,
+        784
+      ],
+      "id": "6918cdd2-3ffb-47c3-bf58-2ad1c3d4e1fb",
+      "name": "Parse Workout Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "91f39b65-6a64-4374-ba60-741ae126044b",
+              "leftValue": "={{ $json.skip_rag }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "b2d7fb75-52ec-4816-bc27-93d1deb5c13b",
+              "leftValue": "={{ $json.embedding }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        472
+      ],
+      "id": "7b1f1fe3-c591-4e01-ab7e-52a5ec5e1544",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ Boolean($json.stream) ? true : false }}"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.format }}"
+            },
+            {
+              "name": "options",
+              "value": "={{ $json.options }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4208,
+        400
+      ],
+      "id": "2bd10e69-52f9-4e33-981f-3580284142ad",
+      "name": "Generate Workout"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a7b072fb-43d3-423f-8f3a-112d975ee9cb",
+              "leftValue": "={{ $json.skip_generation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3984,
+        472
+      ],
+      "id": "85cba137-b0c3-4557-9225-2093c634c6aa",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// COMBINE WORKOUT WITH RAG RESULTS\n// ============================================\n\n// Get all RAG results from Query Vector DB\nconst ragResults = $input.all().map(item => item.json);\n\n// Get the workout data from Create Embedding node\n// (the node that ran before the IF that led to Query Vector DB)\nconst workout = $node[\"Create embedding\"].json;\n\n// Return combined data\nreturn [{\n  json: {\n    workout: workout,\n    rag_results: ragResults\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        544
+      ],
+      "id": "191e93a2-e522-4850-bedf-118b7b2e0fee",
+      "name": "Combine Workout with RAG"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70fe081f-e5c3-4560-9029-89a476575077",
+              "name": "stored_workout",
+              "value": "={{ $json._workout }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3760,
+        472
+      ],
+      "id": "9c887a12-24a5-49ab-8ea4-d020c6502cf9",
+      "name": "Store Workout"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create a lookup object for workouts by day\nconst workouts = $json.workouts;\n\nconst workoutLookup = {};\nworkouts.forEach(workout => {\n  workoutLookup[workout.day] = workout;\n});\n\n// Store in execution context as JSON STRING\n$execution.customData.set('workoutLookup', JSON.stringify(workoutLookup));\n\nconsole.log('Stored workout lookup with keys:', Object.keys(workoutLookup));\n\n// Return workouts as separate items for the loop\nreturn workouts.map(workout => ({ json: workout }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        1000
+      ],
+      "id": "304830ab-2beb-47ce-8c66-4be6b869f9ea",
+      "name": "Prepare Workout Lookup"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 6: CALCULATE TSS PER WORKOUT\n// Precise math - TSS is ALWAYS correct\n// ============================================\n\nconst data = $node[\"Parse Week Structure\"].json;\nconst strategy = data.strategy;\nconst workoutAssignments = data.workout_assignments;\n\n// ============================================\n// TSS CALCULATION RULES (TrainerRoad-aligned)\n// ============================================\n\nconst TSS_RULES = {\n  // High-intensity indoor workouts (45-60 min)\n  'Threshold': {\n    default_duration: 60,\n    tss_per_hour: 100,\n    intensity_factor: 1.00,\n    power_pct: 98,\n    cadence: 95,\n    indoor: true\n  },\n  'Sweet Spot': {\n    default_duration: 60,\n    tss_per_hour: 80,\n    intensity_factor: 0.90,\n    power_pct: 90,\n    cadence: 95,\n    indoor: true\n  },\n  'VO2 Max': {\n    default_duration: 45,\n    tss_per_hour: 120,\n    intensity_factor: 1.10,\n    power_pct: 110,\n    cadence: 100,\n    indoor: true\n  },\n  'Tempo': {\n    default_duration: 60,\n    tss_per_hour: 67,\n    intensity_factor: 0.82,\n    power_pct: 82,\n    cadence: 92,\n    indoor: true\n  },\n  \n  // Endurance rides (outdoor, longer)\n  'Endurance': {\n    default_duration: 120,\n    tss_per_hour: 50,\n    intensity_factor: 0.70,\n    power_pct: 70,\n    cadence: 90,\n    indoor: false\n  },\n  \n  // Recovery/Rest\n  'Recovery': {\n    default_duration: 45,\n    tss_per_hour: 30,\n    intensity_factor: 0.55,\n    power_pct: 55,\n    cadence: 85,\n    indoor: true\n  },\n  'Rest': {\n    default_duration: 0,\n    tss_per_hour: 0,\n    intensity_factor: 0,\n    power_pct: 0,\n    cadence: 0,\n    indoor: true\n  },\n  \n  // Event-specific workouts\n  'Race Simulation': {\n    default_duration: 60,\n    tss_per_hour: 110,\n    intensity_factor: 1.05,\n    power_pct: 102,\n    cadence: 95,\n    indoor: false\n  },\n  'Opener': {\n    default_duration: 30,\n    tss_per_hour: 40,\n    intensity_factor: 0.80,\n    power_pct: 85,\n    cadence: 95,\n    indoor: true\n  },\n  'Easy Spin': {\n    default_duration: 45,\n    tss_per_hour: 20,\n    intensity_factor: 0.50,\n    power_pct: 50,\n    cadence: 85,\n    indoor: true\n  }\n};\n\n// ============================================\n// HELPER FUNCTIONS\n// ============================================\n\nfunction calculateTSS(duration_minutes, intensity_factor) {\n  const duration_hours = duration_minutes / 60;\n  return Math.round(duration_hours * Math.pow(intensity_factor, 2) * 100);\n}\n\nfunction normalizeDuration(workoutType, targetWeeklyTSS) {\n  const rule = TSS_RULES[workoutType];\n  if (!rule) return 60; // Default fallback\n  \n  let duration = rule.default_duration;\n  \n  // Adjust endurance rides based on weekly volume\n  if (workoutType === 'Endurance') {\n    if (targetWeeklyTSS < 350) {\n      duration = 90;  // Lower volume athlete\n    } else if (targetWeeklyTSS < 450) {\n      duration = 120; // Medium volume\n    } else if (targetWeeklyTSS < 550) {\n      duration = 150; // Higher volume\n    } else {\n      duration = 180; // High volume athlete\n    }\n  }\n  \n  return duration;\n}\n\n// ============================================\n// CALCULATE EACH WORKOUT\n// ============================================\n\nconst workouts = workoutAssignments.map((assignment, index) => {\n  const workoutType = assignment.workout_type;\n  const rule = TSS_RULES[workoutType];\n  \n  if (!rule) {\n    throw new Error(`Unknown workout type: ${workoutType}`);\n  }\n  \n  // Determine duration\n  const duration = normalizeDuration(workoutType, strategy.target_tss);\n  \n  // Calculate TSS\n  const tss = calculateTSS(duration, rule.intensity_factor);\n  \n  // Calculate power targets\n  const target_power = Math.round(strategy.ftp * (rule.power_pct / 100));\n  \n  // Calculate scheduled date (start date + day offset)\n  const startDate = new Date(strategy.plan_start_date);\n  const scheduledDate = new Date(startDate);\n  scheduledDate.setDate(scheduledDate.getDate() + index);\n  \n  return {\n    day: assignment.day,\n    day_of_week: assignment.day_of_week,\n    scheduled_date: scheduledDate.toISOString().split('T')[0],\n    \n    workout_type: workoutType,\n    duration_minutes: duration,\n    target_tss: tss,\n    intensity_factor: rule.intensity_factor,\n    \n    target_power_watts: target_power,\n    power_pct: rule.power_pct,\n    target_cadence: rule.cadence,\n    \n    indoor: rule.indoor,\n    \n    // Metadata for workout generation\n    ftp: strategy.ftp,\n    athlete_id: strategy.athlete_id\n  };\n});\n\n// ============================================\n// VALIDATE TOTAL TSS\n// ============================================\n\nconst totalTSS = workouts.reduce((sum, w) => sum + w.target_tss, 0);\n\n// Check if we're within target range\nif (totalTSS < strategy.min_tss || totalTSS > strategy.max_tss) {\n  console.log(`Warning: Total TSS ${totalTSS} outside target range ${strategy.min_tss}-${strategy.max_tss}`);\n  \n  // Optional: Could adjust durations here to hit target\n  // For MVP, we'll just log the warning\n}\n\n// ============================================\n// OUTPUT\n// ============================================\n\nreturn [{\n  json: {\n    strategy: strategy,\n    workouts: workouts,\n    summary: {\n      total_tss: totalTSS,\n      target_tss: strategy.target_tss,\n      min_tss: strategy.min_tss,\n      max_tss: strategy.max_tss,\n      within_range: totalTSS >= strategy.min_tss && totalTSS <= strategy.max_tss,\n      total_duration_minutes: workouts.reduce((sum, w) => sum + w.duration_minutes, 0),\n      total_hours: (workouts.reduce((sum, w) => sum + w.duration_minutes, 0) / 60).toFixed(1)\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        1000
+      ],
+      "id": "cd3ffa90-af68-4a25-8ce2-338466e463d0",
+      "name": "Calculate TSS per Workout"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all completed workouts from the loop\nconst allWorkouts = $input.all().map(item => item.json);\n\n// Get plan metadata from first workout\nconst firstWorkout = allWorkouts[0];\n\n// Calculate plan dates\nconst dates = allWorkouts.map(w => w.scheduled_date).sort();\n\nreturn [{\n  json: {\n    plan: {\n      athlete_id: firstWorkout.athlete_id, // This is passed through\n      start_date: dates[0],\n      end_date: dates[dates.length - 1],\n      goal: 'Build aerobic base and improve FTP',\n      status: 'active'\n    },\n    workouts: allWorkouts, // These already have athlete_id\n    athlete_id: firstWorkout.athlete_id // Add this for easy access\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        880
+      ],
+      "id": "e18b254d-0798-4e5c-b0d9-f555da56c2a7",
+      "name": "Aggregate Workouts"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "training_plans",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $json.plan.athlete_id }}",
+            "start_date": "={{ $json.plan.start_date }}",
+            "end_date": "={{ $json.plan.end_date }}",
+            "goal": "={{ $json.plan.goal }}",
+            "status": "={{ $json.plan.status }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "end_date",
+              "displayName": "end_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "goal",
+              "displayName": "goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2416,
+        880
+      ],
+      "id": "1c5d0b7b-b7e3-467c-823d-8616a86ba81f",
+      "name": "Save Training Plan1",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the plan_id and athlete_id from Save Training Plan\nconst plan_id = $json.id;\nconst athlete_id = $json.athlete_id;\n\n// Get workouts from Aggregate Workouts node\nconst aggregateData = $node[\"Aggregate Workouts\"].json;\nconst workouts = aggregateData.workouts;\n\n// Add plan_id to each workout\nreturn workouts.map(workout => ({\n  json: {\n    training_plan_id: plan_id,\n    athlete_id: workout.athlete_id || athlete_id, // Use from workout or from plan\n    day: workout.day,\n    scheduled_date: workout.scheduled_date,\n    workout_type: workout.workout_type,\n    duration_minutes: workout.duration_minutes,\n    target_tss: workout.target_tss,\n    description: workout.description || `${workout.workout_type} workout`,\n    intervals: workout.intervals,\n    status: 'planned',\n    created_at: new Date().toISOString()\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        880
+      ],
+      "id": "a7d17f3c-5db8-4844-b029-3b20812db497",
+      "name": "Prepare Workouts for Saving"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2864,
+        880
+      ],
+      "id": "ccd9663d-bd6a-421d-aca2-4837f67a56da",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "planned_workouts",
+          "mode": "list",
+          "cachedResultName": "planned_workouts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "plan_id": "={{ $json.training_plan_id }}",
+            "athlete_id": "={{ $json.athlete_id }}",
+            "scheduled_date": "={{ $json.scheduled_date }}",
+            "workout_type": "={{ $json.workout_type }}",
+            "description": "={{ $json.description}}",
+            "duration_minutes": "={{ $json.duration_minutes }}",
+            "target_tss": "={{ $json.target_tss }}",
+            "intervals": "={{ { data: $json.intervals } }}",
+            "status": "={{ $json.status }}",
+            "created_at": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "plan_id",
+              "displayName": "plan_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scheduled_date",
+              "displayName": "scheduled_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workout_type",
+              "displayName": "workout_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duration_minutes",
+              "displayName": "duration_minutes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_tss",
+              "displayName": "target_tss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intervals",
+              "displayName": "intervals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "completed_ride_id",
+              "displayName": "completed_ride_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3088,
+        928
+      ],
+      "id": "c832f584-21e4-4312-9874-9d510edc3a53",
+      "name": "Save Planned Workout",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3312,
+        736
+      ],
+      "id": "79dbec01-8250-4528-983a-39b5674f2354",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Athlete Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Athlete Data": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Old Plans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Old Plans": {
+      "main": [
+        [
+          {
+            "node": "Determine Weekly Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Weekly Strategy": {
+      "main": [
+        [
+          {
+            "node": "Build AI Prompt - Plan Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Prompt - Plan Structure": {
+      "main": [
+        [
+          {
+            "node": "AI Plans Week Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Plans Week Structure": {
+      "main": [
+        [
+          {
+            "node": "Parse Week Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Week Structure": {
+      "main": [
+        [
+          {
+            "node": "Calculate TSS per Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Workouts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build RAG query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG query": {
+      "main": [
+        [
+          {
+            "node": "Create embedding",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create embedding": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Combine Workout with RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Build Workout Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Workout Prompt": {
+      "main": [
+        [
+          {
+            "node": "Store Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Workout Response": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Workout": {
+      "main": [
+        [
+          {
+            "node": "Parse Workout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Generate Workout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Workout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Workout with RAG": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Store Workout": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Workout Lookup": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate TSS per Workout": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workout Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Workouts": {
+      "main": [
+        [
+          {
+            "node": "Save Training Plan1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Training Plan1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workouts for Saving",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Workouts for Saving": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Planned Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Planned Workout": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.131.233",
+            "x-forwarded-for": "92.21.131.233",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "16",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "origin": "https://dabosch.fit",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX1%2BqRBE9a6QV%2FTAd7tAHmOWJ3LGDwQPVuf2o1SP8P57SsxcBGhmm8w0K; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX19uYwPttjW3FCX79FTgmpg5zzPJZFENYtQ%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2BcbN%2FSlrVSfhuA1TsUIpbayYuiD1HnTE2QSOQL%2BApw%2FD1KOcyHlcDxcHYLoEurPI0qDRm8JjphLA%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2BvA9ywrk%2FcDGr0q%2F%2BunsyzHHHB9EY57iGwrGLhGx%2BF%2B9IJtpjFoGY%2Be6j6w53Gkq%2BgQigfF6HYALhh4dK24zumoriTx%2Bn%2BdHnvDbmql9hwXjz22Y2uZr64cYNPbcuxFUsD3P%2BbWPz533yo%2FiliuoHfuKNyEHHsVJY%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2B3ADBtanaWXW2mQahFaP%2F321KW0cbPLE6V%2FUq1WLlhk5fflXadT62zL57%2FiROD9InWFt088mXIBdZhlTcUPfJa6jXasycFYA18Y3IkcYgoaBSPXQW81URvAdyEljvsFN0UyVQab%2B3JW1PRq%2FljLuyFS4b5Pw%2BQkjE%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%235e4c7d26-e78e-41e1-8d1b-755c6b35b439%22%2C%22%24sesid%22%3A%5B1762547211358%2C%22019a5ff4-2055-78ac-b1c3-785a919ae5d9%22%2C1762546425940%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fdabosch.fit%2Fsetup%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2Bqb%2FT0sGgwCS7Zei7zoVVuWOR2GFpOpPGuptBMuvZoXTolb24FZbTiUGUp4v0mjz%2FDSD%2BIrMPw7iX6ErDaluuVUqRXbCp%2BAV46i3GLKSt1EcY6a4PjcHPGUKeSeckknBNH%2By3R3BmCvg%3D%3D"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "athlete_id": 9
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/generate-plan",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "bcaeabf6-8aa2-443c-bf80-6531f27658db",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-11-01T13:17:17.047Z",
+      "updatedAt": "2025-11-01T13:17:17.047Z",
+      "role": "workflow:owner",
+      "workflowId": "6tAO0JFLjVCLqyLp",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

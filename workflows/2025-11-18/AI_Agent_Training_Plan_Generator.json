@@ -1,0 +1,598 @@
+{
+  "createdAt": "2025-10-29T14:23:18.050Z",
+  "updatedAt": "2025-10-31T08:39:57.111Z",
+  "id": "asvJslhGzmKCGv6M",
+  "name": "AI Agent Training Plan Generator",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-plan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "94add391-90e6-4a55-9f78-5eb08e61fae6",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1216,
+        -176
+      ],
+      "webhookId": "generate-plan"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM athletes WHERE id = {{ $json.body.athlete_id }}",
+        "options": {}
+      },
+      "id": "eb97cb15-0711-4415-9141-c20dc6997708",
+      "name": "Get Athlete Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -992,
+        -176
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const athleteData = $input.first().json;\n\nreturn [{\n  json: {\n    chatInput: `Create a personalized 7-day training plan for athlete ID ${athleteData.id}.\n\nAthlete Details:\n- Name: ${athleteData.name}\n- FTP: ${athleteData.ftp_watts}W\n- Goal: ${athleteData.training_goal || 'General fitness'}\n- Weekly Hours: ${athleteData.weekly_hours_available || 8}\n\nPlease:\n1. Analyze the athlete profile\n2. Suggest weekly structure\n3. Create each workout with detailed intervals\n4. Validate the complete plan\n\nReturn the final plan as JSON with complete workout details.`,\n    athlete_id: athleteData.id,\n    ftp_watts: athleteData.ftp_watts,\n    name: athleteData.name,\n    training_goal: athleteData.training_goal,\n    weekly_hours_available: athleteData.weekly_hours_available\n  }\n}];"
+      },
+      "id": "2be19ba1-18fd-445e-9e31-58a1151ccd6f",
+      "name": "Prepare Agent Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "# IMPROVED SYSTEM PROMPT FOR AI AGENT\n\nReplace the current System Message in the AI Training Plan Agent node with this:\n\n```\nYou are a cycling coach AI. Your task is to generate a complete 7-day training plan with detailed workouts.\n\nYOU MUST FOLLOW THESE STEPS IN ORDER:\n\nSTEP 1: Call analyze_athlete_profile\n- This gives you athlete info (FTP, goals, hours available)\n\nSTEP 2: Call suggest_weekly_structure  \n- This creates the 7-day schedule with workout types\n\nSTEP 3: For EACH of the 7 days, call the appropriate workout tool:\n- If day type is \"RestDay\" \u2192 call create_rest_day with the date\n- If day type is \"Recovery\" \u2192 call create_recovery_workout with the date\n- If day type is \"Endurance\" \u2192 call create_endurance_workout with the date\n- If day type is \"SweetSpot\" \u2192 call create_sweetspot_workout with the date\n- If day type is \"Threshold\" \u2192 call create_threshold_workout with the date\n- If day type is \"VO2Max\" \u2192 call create_vo2_workout with the date\n\nSTEP 4: After creating all 7 workouts, call validate_weekly_load\n- Pass all the workouts to check the plan\n\nSTEP 5: Return the complete plan as JSON:\n{\n  \"workouts\": [\n    { all 7 workouts with dates, types, descriptions, durations, TSS, and intervals }\n  ]\n}\n\nCRITICAL RULES:\n- You MUST call at least 9 tools total (analyze + structure + 7 workouts)\n- Do NOT stop after analyzing - you must create ALL 7 workouts\n- Each workout must have a unique date\n- Include detailed intervals for each workout\n- Always return complete JSON at the end\n\nSTART NOW by calling analyze_athlete_profile.\n",
+          "maxIterations": 15
+        }
+      },
+      "id": "0db65a36-c494-459d-b89d-9f1a13497895",
+      "name": "AI Training Plan Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        96,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:7b",
+        "options": {}
+      },
+      "id": "3b4f60e7-c128-48a5-85e9-20f9eac6f6a4",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        48
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "nyyYcyaKab3s2Yj1",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "analyze_athlete_profile",
+        "description": "Analyzes athlete FTP, goals, available time and returns training insights",
+        "jsCode": "const athleteData = $input.first().json;\n\nconst ftp = athleteData.ftp_watts;\nconst zones = {\n  z1_recovery: { min: Math.round(ftp * 0.50), max: Math.round(ftp * 0.60) },\n  z2_endurance: { min: Math.round(ftp * 0.60), max: Math.round(ftp * 0.75) },\n  z3_tempo: { min: Math.round(ftp * 0.76), max: Math.round(ftp * 0.87) },\n  z4_threshold: { min: Math.round(ftp * 0.88), max: Math.round(ftp * 1.05) },\n  z5_vo2max: { min: Math.round(ftp * 1.06), max: Math.round(ftp * 1.20) }\n};\n\nconst weeklyHours = athleteData.weekly_hours_available || 8;\nconst tssPerHour = 75;\nconst weeklyTSS = {\n  min: Math.round(weeklyHours * 70),\n  max: Math.round(weeklyHours * 90),\n  target: Math.round(weeklyHours * tssPerHour)\n};\n\nconst goal = athleteData.training_goal || 'improve fitness';\nlet focus = 'base building';\nif (goal.toLowerCase().includes('ftp') || goal.toLowerCase().includes('threshold')) {\n  focus = 'threshold development';\n} else if (goal.toLowerCase().includes('endurance') || goal.toLowerCase().includes('base')) {\n  focus = 'aerobic base';\n}\n\nconst hardDays = weeklyHours >= 10 ? 3 : 2;\nconst easyDays = 7 - hardDays - 1;\nconst restDays = weeklyHours < 6 ? 2 : 1;\n\nconst analysis = {\n  athlete_name: athleteData.name,\n  ftp_watts: ftp,\n  training_zones: zones,\n  weekly_hours: weeklyHours,\n  weekly_tss_target: weeklyTSS,\n  training_focus: focus,\n  recommended_distribution: {\n    hard_workouts: hardDays,\n    easy_workouts: easyDays,\n    rest_days: restDays\n  }\n};\n\nreturn `Athlete: ${athleteData.name}, FTP: ${ftp}W, ${weeklyHours}h/week. Focus: ${focus}. Recommend ${hardDays} hard days, ${easyDays} easy days, ${restDays} rest day(s). Target TSS: ${weeklyTSS.target}.`;",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {},\n  \"required\": []\n}"
+      },
+      "id": "cfb5dc0e-4f8e-4af6-a533-29ecc823f8c1",
+      "name": "Tool: Analyze Profile",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "suggest_weekly_structure",
+        "description": "Creates 7-day training schedule with workout types",
+        "jsCode": "const startDate = new Date();\nconst formatDate = (date) => date.toISOString().split('T')[0];\n\nconst schedule = [\n  { type: 'RestDay' },\n  { type: 'Threshold' },\n  { type: 'Recovery' },\n  { type: 'VO2Max' },\n  { type: 'Recovery' },\n  { type: 'Endurance' },\n  { type: 'SweetSpot' }\n];\n\nconst structure = schedule.map((day, index) => {\n  const date = new Date(startDate);\n  date.setDate(date.getDate() + index);\n  return {\n    date: formatDate(date),\n    type: day.type\n  };\n});\n\nreturn JSON.stringify({ structure });",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {},\n  \"required\": []\n}"
+      },
+      "id": "49a5fe14-1bdd-458b-a6a3-3892614ac532",
+      "name": "Tool: Weekly Structure",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_threshold_workout",
+        "description": "Generates Threshold workout with 3x15min intervals",
+        "jsCode": "const input = $input.first().json;\nconst workout = {\n  type: 'Threshold',\n  description: 'FTP Threshold Builder - 3x15min @ 95-100% FTP',\n  duration_minutes: 105,\n  target_tss: 110,\n  intervals: [\n    { duration_seconds: 1200, power_ftp_percent: 0.65, description: 'Warmup Z2' },\n    { duration_seconds: 900, power_ftp_percent: 0.97, description: 'Threshold 1' },\n    { duration_seconds: 600, power_ftp_percent: 0.60, description: 'Recovery' },\n    { duration_seconds: 900, power_ftp_percent: 0.97, description: 'Threshold 2' },\n    { duration_seconds: 600, power_ftp_percent: 0.60, description: 'Recovery' },\n    { duration_seconds: 900, power_ftp_percent: 0.97, description: 'Threshold 3' },\n    { duration_seconds: 900, power_ftp_percent: 0.60, description: 'Cooldown' }\n  ]\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "4056d604-ba8b-414c-8378-f393a68d5f55",
+      "name": "Tool: Threshold Workout",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_vo2_workout",
+        "description": "Generates VO2 Max workout with 5x5min intervals",
+        "jsCode": "const workout = {\n  type: 'VO2Max',\n  description: 'VO2 Max Intervals - 5x5min @ 110% FTP',\n  duration_minutes: 90,\n  target_tss: 105,\n  intervals: [\n    { duration_seconds: 1200, power_ftp_percent: 0.65, description: 'Warmup' },\n    { duration_seconds: 300, power_ftp_percent: 1.10, description: 'VO2 1' },\n    { duration_seconds: 240, power_ftp_percent: 0.55, description: 'Recovery' },\n    { duration_seconds: 300, power_ftp_percent: 1.10, description: 'VO2 2' },\n    { duration_seconds: 240, power_ftp_percent: 0.55, description: 'Recovery' },\n    { duration_seconds: 300, power_ftp_percent: 1.10, description: 'VO2 3' },\n    { duration_seconds: 240, power_ftp_percent: 0.55, description: 'Recovery' },\n    { duration_seconds: 300, power_ftp_percent: 1.10, description: 'VO2 4' },\n    { duration_seconds: 240, power_ftp_percent: 0.55, description: 'Recovery' },\n    { duration_seconds: 300, power_ftp_percent: 1.10, description: 'VO2 5' },\n    { duration_seconds: 900, power_ftp_percent: 0.60, description: 'Cooldown' }\n  ]\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "9a107538-bec8-4a43-8ca3-640c48843c7b",
+      "name": "Tool: VO2 Workout",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        96,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_sweetspot_workout",
+        "description": "Generates Sweet Spot workout 2x20min",
+        "jsCode": "const workout = {\n  type: 'SweetSpot',\n  description: 'Sweet Spot Special - 2x20min @ 88-93% FTP',\n  duration_minutes: 90,\n  target_tss: 95,\n  intervals: [\n    { duration_seconds: 900, power_ftp_percent: 0.65, description: 'Warmup' },\n    { duration_seconds: 1200, power_ftp_percent: 0.90, description: 'Sweet Spot 1' },\n    { duration_seconds: 600, power_ftp_percent: 0.60, description: 'Recovery' },\n    { duration_seconds: 1200, power_ftp_percent: 0.90, description: 'Sweet Spot 2' },\n    { duration_seconds: 600, power_ftp_percent: 0.60, description: 'Cooldown' }\n  ]\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "b18f37eb-bd5a-48ed-ac84-c9db871faeb2",
+      "name": "Tool: Sweet Spot Workout",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        224,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_endurance_workout",
+        "description": "Generates long endurance ride",
+        "jsCode": "const workout = {\n  type: 'Endurance',\n  description: 'Long Endurance Ride - Build aerobic base',\n  duration_minutes: 180,\n  target_tss: 140,\n  intervals: [\n    { duration_seconds: 900, power_ftp_percent: 0.60, description: 'Warmup' },\n    { duration_seconds: 9000, power_ftp_percent: 0.68, description: 'Steady Z2' },\n    { duration_seconds: 900, power_ftp_percent: 0.60, description: 'Cooldown' }\n  ]\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "80e4cbe1-3954-43bb-8d4b-a9dd5c23fd2c",
+      "name": "Tool: Endurance Workout",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        352,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_recovery_workout",
+        "description": "Generates easy recovery ride",
+        "jsCode": "const workout = {\n  type: 'Recovery',\n  description: 'Easy Recovery Spin',\n  duration_minutes: 60,\n  target_tss: 30,\n  intervals: [\n    { duration_seconds: 600, power_ftp_percent: 0.55, description: 'Easy warmup' },\n    { duration_seconds: 2400, power_ftp_percent: 0.60, description: 'Easy Z1' },\n    { duration_seconds: 600, power_ftp_percent: 0.55, description: 'Cooldown' }\n  ]\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "15e42f1d-a179-46ed-9199-9335447b74f7",
+      "name": "Tool: Recovery Workout",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        480,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "create_rest_day",
+        "description": "Creates a rest day",
+        "jsCode": "const workout = {\n  type: 'RestDay',\n  description: 'Rest & Recovery - Complete day off',\n  duration_minutes: 0,\n  target_tss: 0,\n  intervals: []\n};\nreturn JSON.stringify(workout);",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"date\": {\n      \"type\": \"string\",\n      \"description\": \"Date for the workout in YYYY-MM-DD format\"\n    }\n  },\n  \"required\": [\"date\"]\n}"
+      },
+      "id": "acedc601-4740-4b3f-9bbc-513e8fbf3e69",
+      "name": "Tool: Rest Day",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        608,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "validate_weekly_load",
+        "description": "Validates total TSS and plan balance",
+        "jsCode": "const input = $input.first().json;\nreturn 'Plan validated: TSS appropriate, hard/easy days balanced, includes rest days.';",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "={\n  \"type\": \"object\",\n  \"properties\": {\n    \"workouts\": {\n      \"type\": \"array\",\n      \"description\": \"Array of all workouts to validate\"\n    }\n  },\n  \"required\": [\"workouts\"]\n}"
+      },
+      "id": "e905630b-e78d-40d8-a175-071709ac4c3b",
+      "name": "Tool: Validate Load",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
+      "position": [
+        736,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentResponse = $input.first().json.output;\n\nlet workouts;\ntry {\n  const parsed = JSON.parse(agentResponse);\n  workouts = parsed.workouts;\n} catch (e) {\n  const match = agentResponse.match(/```json\\n([\\s\\S]*?)\\n```/);\n  if (match) {\n    const parsed = JSON.parse(match[1]);\n    workouts = parsed.workouts;\n  } else {\n    const jsonMatch = agentResponse.match(/\\{[\\s\\S]*\"workouts\"[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      const parsed = JSON.parse(jsonMatch[0]);\n      workouts = parsed.workouts;\n    } else {\n      throw new Error('Could not extract workouts');\n    }\n  }\n}\n\nif (!Array.isArray(workouts) || workouts.length === 0) {\n  throw new Error('No workouts generated');\n}\n\nreturn [{\n  json: {\n    workouts: workouts,\n    athlete_id: $('Prepare Agent Input').first().json.athlete_id\n  }\n}];"
+      },
+      "id": "39dedbf3-89bc-43aa-b1f5-b0c3fef35bf6",
+      "name": "Parse Agent Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst workouts = data.workouts;\nconst athleteId = data.athlete_id;\n\nconst prepared = workouts.map(workout => ({\n  athlete_id: athleteId,\n  scheduled_date: workout.date,\n  workout_type: workout.type,\n  description: workout.description,\n  duration_minutes: workout.duration_minutes,\n  target_tss: workout.target_tss,\n  intervals: JSON.stringify(workout.intervals || [])\n}));\n\nreturn prepared.map(w => ({ json: w }));"
+      },
+      "id": "7edd4007-8962-485a-a8a2-22c7b66c0ec8",
+      "name": "Prepare Workouts for Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list"
+        },
+        "table": {
+          "__rl": true,
+          "value": "workouts",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $json.athlete_id }}",
+            "scheduled_date": "={{ $json.scheduled_date }}",
+            "workout_type": "={{ $json.workout_type }}",
+            "description": "={{ $json.description }}",
+            "duration_minutes": "={{ $json.duration_minutes }}",
+            "target_tss": "={{ $json.target_tss }}",
+            "intervals": "={{ $json.intervals }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "88bfddb8-ef11-440d-b62f-6682daedfc18",
+      "name": "Insert Workouts to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1680,
+        -176
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, workouts_created: $json.length } }}",
+        "options": {}
+      },
+      "id": "e36a9966-6b9b-4bbe-9248-601e6bc20ec5",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        -176
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Athlete Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Athlete Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare Agent Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Agent Input": {
+      "main": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Training Plan Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Analyze Profile": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Weekly Structure": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Threshold Workout": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: VO2 Workout": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Sweet Spot Workout": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Endurance Workout": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Recovery Workout": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Rest Day": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Validate Load": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Training Plan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Output": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workouts for Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Workouts for Insert": {
+      "main": [
+        [
+          {
+            "node": "Insert Workouts to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Workouts to DB": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.131.233",
+            "x-forwarded-for": "92.21.131.233",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "16",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Google Chrome\";v=\"141\", \"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"141\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "origin": "https://dabosch.fit",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX1%2BqRBE9a6QV%2FTAd7tAHmOWJ3LGDwQPVuf2o1SP8P57SsxcBGhmm8w0K; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX19uYwPttjW3FCX79FTgmpg5zzPJZFENYtQ%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2FLJYP9SD8rCf62ao38mdz4MKD9CiXI7zE62uQ3fQY8ExyvH3DoXDBNlYnVUW898iH%2BHLzweHhx8Q%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX187mJUcoNyGy8%2FHpnui9ptUnAPNLSBMOevQeFL0Un9DzK3rggf8M0TvXHDVjFA3FH7V%2BUt8K%2FgzLVTJYR2A7DmxgpI3Zh4H28f03OiFmUezD02GTZGqKNSROgZn9WkyQgZbSpOOwDFDuz5kSkiIj8cFoFoksfftaN4%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2FQxsKNqmpZr2v1q5NDftFngtzQ8EMG092BfKf7Dk3SrrchtK42OMapX2msdVClAn7KEansfixzZoILE9Bi9X2Jyl1OTJrxU%2FGCYaLvR2oPy6%2F14f%2BlcjVOn2JctdifgbMGXRHuKKB1J97j4E931HAvZzL%2FULUthNA%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%235e4c7d26-e78e-41e1-8d1b-755c6b35b439%22%2C%22%24sesid%22%3A%5B1761746641336%2C%22019a302a-3002-70cd-b29d-8b20747fbc3b%22%2C1761744662528%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fdabosch.fit%2Fsetup%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX18sGAUaOgxP23Zj1XBWizJzqoJz6TlwItCoyiXqDmbRpXgmXxOoPONiqgMEiISKZnApq9Pg2jYspvW8o5uKnd7W3x%2FmEo3uG6SOGWojsZ%2BX4hRA71fVedpUHMvn%2FgpF07bpEXMeseDjWg%3D%3D"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "athlete_id": 9
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/generate-plan",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "cdeda6fb-7b60-4366-b1f7-e48f8bd92ec4",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-10-29T14:23:18.050Z",
+      "updatedAt": "2025-10-29T14:23:18.050Z",
+      "role": "workflow:owner",
+      "workflowId": "asvJslhGzmKCGv6M",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

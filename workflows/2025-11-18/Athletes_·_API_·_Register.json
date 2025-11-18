@@ -1,0 +1,142 @@
+{
+  "createdAt": "2025-10-19T17:50:08.903Z",
+  "updatedAt": "2025-10-19T17:59:21.217Z",
+  "id": "64QavrsBO6Z6qFJk",
+  "name": "Athletes \u00b7 API \u00b7 Register",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/api/athletes/register",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f5eadca3-3d10-420f-b285-35f8d0e61972",
+      "name": "Webhook",
+      "webhookId": "7855a85e-049d-4a8f-9422-759cad3fa0c0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || {};\nif (!body.email || !body.name) {\n  throw new Error(\"Missing required fields: name, email\");\n}\n\nreturn [\n  {\n    json: {\n      name: body.name.trim(),\n      email: body.email.trim().toLowerCase()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e598aaf9-8c3f-4e62-b5ca-cc6f0dd250ab",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO athletes (name, email)\nVALUES ('{{$json[\"name\"]}}', '{{$json[\"email\"]}}')\nON CONFLICT (email)\nDO UPDATE SET name = EXCLUDED.name\nRETURNING id, name, email;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b179e171-6a2c-4347-abd4-554deba20df6",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"ok\",\n  \"id\": $json[\"id\"],\n  \"name\": $json[\"name\"],\n  \"email\": $json[\"email\"]\n} }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "39c22dfd-9d2e-4403-b4bf-dfb84dd6cbcd",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "be42437d-309d-41f3-993f-a26182cd69ed",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-10-19T17:50:08.903Z",
+      "updatedAt": "2025-10-19T17:50:08.903Z",
+      "role": "workflow:owner",
+      "workflowId": "64QavrsBO6Z6qFJk",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

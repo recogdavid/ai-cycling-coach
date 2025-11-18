@@ -1,0 +1,244 @@
+{
+  "createdAt": "2025-10-19T18:00:41.781Z",
+  "updatedAt": "2025-11-17T17:58:37.444Z",
+  "id": "1smEFr6UaarzfZqh",
+  "name": "Strava \u00b7 API \u00b7 Connect",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/api/strava/connect",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "72ce3178-3466-432f-bfc6-fafe18abbdcc",
+      "name": "Webhook",
+      "webhookId": "3e797322-bb37-4c13-81d1-5166f0760ddb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const q = $json.query || {};\nconst athleteId = q.athlete_id;\nconst action = q.action; // 'login' for returning users\n\nconst clientId = $env.STRAVA_CLIENT_ID;\nif (!clientId) {\n  return [{ json: { hasRedirect: false, status: 'error', message: 'STRAVA_CLIENT_ID is not set in the container env' } }];\n}\n\nconst redirectUri = encodeURIComponent('https://dabosch.fit/webhook/api/strava/callback');\nconst scope = 'read,activity:read_all,profile:read_all';\n\n// Determine state parameter\nlet state;\nif (action === 'login') {\n  // Returning user signing in - we'll look them up in callback\n  state = 'login';\n} else if (athleteId) {\n  // New user who just registered - link Strava to their account\n  state = athleteId;\n} else {\n  // No action and no athlete_id - redirect to onboarding\n  return [{\n    json: {\n      hasRedirect: true,\n      status: 'redirect_to_onboarding',\n      redirect: 'https://dabosch.fit/onboarding.html?error=Please+sign+up+first'\n    }\n  }];\n}\n\nconst redirect =\n  'https://www.strava.com/oauth/authorize'\n  + '?client_id=' + clientId\n  + '&response_type=code'\n  + '&redirect_uri=' + redirectUri\n  + '&scope=' + scope\n  + '&state=' + state;\n\nreturn [{ json: { hasRedirect: true, status: 'ok', redirect } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "df2c8f5e-1b09-4214-8a74-5c9e3dc83270",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{ $json[\"redirect\"] }}",
+        "options": {
+          "responseCode": 302
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        -48
+      ],
+      "id": "f727acd5-caa4-4aee-b4f4-8ebed91e0ecc",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "56031357-3a52-41f4-a468-bc21d62e17ab",
+              "leftValue": "={{ $json[\"hasRedirect\"] }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3631e484-d883-4c0d-aecc-3dc52866468d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json[\"body\"] }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        96
+      ],
+      "id": "2a6ddc20-aea7-4766-96c4-3ace6a7e7caa",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take whatever is in $json and return a stringified body + content type\nreturn [{\n  json: {\n    body: JSON.stringify($json),\n    contentType: 'application/json'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        96
+      ],
+      "id": "df4c1e69-1835-4d8e-9d6d-6c140d7b8da3",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.131.233",
+            "x-forwarded-for": "92.21.131.233",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-user": "?1",
+            "sec-fetch-dest": "document",
+            "referer": "https://dabosch.fit/",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en;q=0.9",
+            "priority": "u=0, i",
+            "cookie": "athlete_id=undefined; athlete_id=undefined"
+          },
+          "params": {},
+          "query": {
+            "action": "login"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/api/strava/connect",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "34707f2a-f8e1-449a-b83e-73c1879b6754",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-10-19T18:00:41.781Z",
+      "updatedAt": "2025-10-19T18:00:41.781Z",
+      "role": "workflow:owner",
+      "workflowId": "1smEFr6UaarzfZqh",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

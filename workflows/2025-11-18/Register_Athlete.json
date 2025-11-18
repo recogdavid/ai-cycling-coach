@@ -1,0 +1,241 @@
+{
+  "createdAt": "2025-11-16T11:04:05.402Z",
+  "updatedAt": "2025-11-16T11:14:43.115Z",
+  "id": "T43rGYUIHeYZMzAs",
+  "name": "Register Athlete",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "athletes/register",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "124abb4a-eddb-4f29-9738-740b1bfa18bf",
+      "name": "Webhook",
+      "webhookId": "5eba6520-4ac3-49fd-aa4b-c28a26c52ffb"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the posted data\nconst data = $json.body || $json;\n\n// Validate required fields\nconst required = ['name', 'ftp_watts', 'training_goal', 'weekly_hours_available'];\nconst missing = [];\n\nfor (const field of required) {\n  if (!data[field]) {\n    missing.push(field);\n  }\n}\n\nif (missing.length > 0) {\n  return {\n    json: {\n      error: true,\n      message: `Missing required fields: ${missing.join(', ')}`\n    }\n  };\n}\n\n// Validate data types\nif (typeof data.ftp_watts !== 'number' || data.ftp_watts < 100 || data.ftp_watts > 500) {\n  return {\n    json: {\n      error: true,\n      message: 'FTP must be a number between 100 and 500'\n    }\n  };\n}\n\nif (typeof data.weekly_hours_available !== 'number' || data.weekly_hours_available < 3 || data.weekly_hours_available > 30) {\n  return {\n    json: {\n      error: true,\n      message: 'Weekly hours must be a number between 3 and 30'\n    }\n  };\n}\n\n// Format unavailable_days as array (could be empty)\nconst unavailable_days = Array.isArray(data.unavailable_days) ? data.unavailable_days : [];\n\nreturn {\n  json: {\n    error: false,\n    name: data.name.trim(),\n    ftp_watts: data.ftp_watts,\n    weight_kg: data.weight_kg || null,\n    training_goal: data.training_goal.trim(),\n    weekly_hours_available: data.weekly_hours_available,\n    unavailable_days: unavailable_days\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "efe6050d-1311-4cfa-97fa-b325a344acdf",
+      "name": "Add Validation"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbdd1ee7-d82f-441c-9e83-0365661d2a49",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fead98a9-b4c7-46c5-b929-44ce1e2cbec6",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO athletes (\n  name,\n  ftp_watts,\n  weight_kg,\n  training_goal,\n  weekly_hours_available,\n  unavailable_days\n) VALUES (\n  '{{ $json.name }}',\n  {{ $json.ftp_watts }},\n  {{ $json.weight_kg }},\n  '{{ $json.training_goal }}',\n  {{ $json.weekly_hours_available }},\n  '{{ JSON.stringify($json.unavailable_days) }}'\n) RETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "f1b0d3cc-2364-4869-b799-e881a3b92762",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"athlete_id\": {{ $json.id }},\n  \"message\": \"Account created successfully\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "bbd525f5-1dd8-4b6b-9bcc-200a35729e84",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "07d75747-ba95-456b-bf96-3f5fd0b223c4",
+      "name": "Error response"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Add Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Validation": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.131.233",
+            "x-forwarded-for": "92.21.131.233",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "177",
+            "user-agent": "curl/8.7.1",
+            "accept": "*/*",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "name": "Test User",
+            "ftp_watts": 250,
+            "weight_kg": 75,
+            "training_goal": "Improve FTP",
+            "weekly_hours_available": 8,
+            "unavailable_days": [
+              "monday"
+            ]
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/athletes/register",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "2b37d829-c5a5-48b1-84cf-1a9d688c560e",
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "createdAt": "2025-11-16T11:04:05.402Z",
+      "updatedAt": "2025-11-16T11:04:05.402Z",
+      "role": "workflow:owner",
+      "workflowId": "T43rGYUIHeYZMzAs",
+      "projectId": "ufF06KBZ4z9JxMTX",
+      "project": {
+        "createdAt": "2025-10-04T12:04:43.980Z",
+        "updatedAt": "2025-10-04T16:49:46.916Z",
+        "id": "ufF06KBZ4z9JxMTX",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}
