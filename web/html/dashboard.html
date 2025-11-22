@@ -33,14 +33,35 @@
       position: relative;
     }
     
+    /* Header Content */
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
     /* App Logo */
     .app-logo {
-      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
     
     .app-logo img {
       height: 50px;
       width: auto;
+    }
+    
+    /* Athlete Info */
+    .athlete-info {
+      color: #222;
+      font-size: 1.1rem;
+    }
+    
+    .athlete-info strong {
+      font-weight: 600;
+      color: #667eea;
     }
     
     /* Strava Badge */
@@ -95,6 +116,15 @@
       background: #ccc;
       cursor: not-allowed;
       transform: none;
+    }
+    
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+    
+    .btn-secondary:hover {
+      background: #e5e7eb;
     }
     
     .loading {
@@ -157,6 +187,7 @@
       display: flex;
       gap: 1rem;
       font-size: 0.85rem;
+      margin-bottom: 1rem;
     }
     
     .stat {
@@ -174,6 +205,33 @@
       color: #222;
       font-weight: bold;
       font-size: 1.1rem;
+    }
+    
+    .workout-downloads {
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      background: #f3f4f6;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .download-btn:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-1px);
     }
     
     .message {
@@ -229,16 +287,21 @@
         <img src="/assets/strava/api_logo_pwrdBy_strava_stack_orange.svg" alt="Powered by Strava">
       </a>
       
-      <!-- App Logo -->
-      <div class="app-logo">
-        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+      <!-- Header Content with Logo and Athlete Info -->
+      <div class="header-content">
+        <div class="app-logo">
+          <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+        </div>
+        <div class="athlete-info" id="athleteInfo">
+          <!-- Populated by JS -->
+        </div>
       </div>
       
       <p class="subtitle">Your personalized training dashboard</p>
       
       <div class="actions">
         <button id="generateBtn" onclick="generatePlan()">Generate New Training Plan</button>
-        <button onclick="location.href='/portal/index.html'">View FTP Summary</button>
+        <button class="btn-secondary" onclick="location.href='/'">Sign Out</button>
       </div>
       
       <div id="headerMessage"></div>
@@ -266,8 +329,38 @@
   </div>
 
   <script>
-    const athleteId = 9;
     const apiBase = 'https://dabosch.fit/webhook';
+    
+    // Get athlete_id from cookie
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
+    }
+    
+    const athleteId = getCookie('athlete_id');
+    
+    // Redirect to login if not authenticated
+    if (!athleteId) {
+      window.location.href = '/';
+    }
+    
+    // Load and display athlete info
+    async function loadAthleteInfo() {
+      try {
+        const response = await fetch(`${apiBase}/athletes/${athleteId}`);
+        if (response.ok) {
+          const athlete = await response.json();
+          document.getElementById('athleteInfo').innerHTML = `
+            Welcome back, <strong>${athlete.name}</strong>!
+          `;
+          document.title = `${athlete.name}'s Training Plan - Dave's AI Cycling Coach`;
+        }
+      } catch (error) {
+        console.error('Failed to load athlete info:', error);
+      }
+    }
     
     function formatDate(dateStr) {
       const date = new Date(dateStr);
@@ -329,6 +422,20 @@
               <span class="stat-value">${workout.target_tss || 0}</span>
             </div>
           </div>
+          <div class="workout-downloads">
+            <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=zwo" 
+               class="download-btn" 
+               download
+               title="Download for Zwift">
+              📥 .zwo (Zwift)
+            </a>
+            <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=fit" 
+               class="download-btn" 
+               download
+               title="Download for Garmin/Wahoo">
+              📥 .fit (Garmin/Wahoo)
+            </a>
+          </div>
         `;
         
         container.appendChild(card);
@@ -370,6 +477,8 @@
       setTimeout(() => container.innerHTML = '', 5000);
     }
     
+    // Initialize
+    loadAthleteInfo();
     loadWorkouts();
   </script>
 </body>

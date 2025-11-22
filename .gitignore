@@ -23,3 +23,28 @@ Thumbs.db
 # Workflows are tracked separately in the `workflows/` directory
 /home/node/.n8n/
 *.bkup.conf
+
+# Backups
+backups/
+*.backup
+
+# Reference materials (PDFs)
+reference-materials/
+
+# Data directories
+data/postgres/
+data/n8n/
+
+# Large files
+*.pdf
+
+# Temporary files
+scripts/temp/
+scripts/$WORKFLOWS_DIR/
+
+# Old/backup files
+*.old.yml
+*.bak
+
+# n8n custom packages (if these are dependencies)
+n8n-custom-packages/

@@ -18,6 +18,7 @@ services:
       - "5432"
     networks:
       - ai-coach-net
+      
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped
@@ -45,11 +46,26 @@ services:
       postgres:
         condition: service_healthy
     volumes:
+      - ./n8n-custom-packages/node_modules:/usr/local/lib/node_modules
       - ./data/n8n:/home/node/.n8n
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - ai-coach-net
+      
+  fit-generator:
+    build: ./fit-generator
+    restart: unless-stopped
+    expose:
+      - "5000"
+    networks:
+      - ai-coach-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -66,6 +82,7 @@ services:
       - n8n
     networks:
       - ai-coach-net
+      
   certbot:
     image: certbot/certbot:latest
     container_name: ai-cycling-coach-certbot
@@ -78,6 +95,7 @@ services:
         certbot renew --webroot -w /var/www/certbot;
         sleep 12h;
       done"
+      
 networks:
   ai-coach-net:
     driver: bridge
