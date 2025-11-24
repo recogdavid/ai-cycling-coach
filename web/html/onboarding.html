@@ -29,7 +29,7 @@
     
     .card {
       background: white;
-      padding: 3rem;
+      padding: 2.5rem;
       border-radius: 12px;
       box-shadow: 0 8px 16px rgba(0,0,0,0.2);
     }
@@ -45,8 +45,8 @@
     }
     
     h1 {
-      font-size: 2rem;
       color: #222;
+      font-size: 1.8rem;
       margin-bottom: 0.5rem;
       text-align: center;
     }
@@ -55,44 +55,6 @@
       color: #666;
       text-align: center;
       margin-bottom: 2rem;
-      font-size: 0.95rem;
-    }
-    
-    .progress-steps {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    
-    .step {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #e0e0e0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      color: #666;
-    }
-    
-    .step.active {
-      background: #667eea;
-      color: white;
-    }
-    
-    .step.complete {
-      background: #10b981;
-      color: white;
-    }
-    
-    .form-section {
-      display: none;
-    }
-    
-    .form-section.active {
-      display: block;
     }
     
     .form-group {
@@ -101,296 +63,265 @@
     
     label {
       display: block;
-      color: #333;
-      font-weight: 600;
+      color: #444;
+      font-weight: 500;
       margin-bottom: 0.5rem;
-      font-size: 0.9rem;
     }
     
-    .label-optional {
-      color: #999;
-      font-weight: normal;
-      font-size: 0.85rem;
+    .required {
+      color: #ef4444;
     }
     
-    input[type="text"],
-    input[type="number"],
-    textarea,
-    select {
+    input, select, textarea {
       width: 100%;
       padding: 0.75rem;
-      border: 2px solid #e0e0e0;
-      border-radius: 6px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
       font-size: 1rem;
       font-family: inherit;
       transition: border-color 0.2s;
     }
     
-    input:focus,
-    textarea:focus,
-    select:focus {
+    input:focus, select:focus, textarea:focus {
       outline: none;
       border-color: #667eea;
     }
     
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-    }
-    
-    .input-hint {
-      font-size: 0.85rem;
-      color: #666;
-      margin-top: 0.25rem;
-    }
-    
     .checkbox-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-top: 0.5rem;
-    }
-    
-    .checkbox-item {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      margin-bottom: 1rem;
     }
     
-    .checkbox-item input[type="checkbox"] {
+    .checkbox-group input[type="checkbox"] {
       width: auto;
-      cursor: pointer;
     }
     
-    .checkbox-item label {
-      margin: 0;
-      font-weight: normal;
-      cursor: pointer;
+    .event-section {
+      display: none;
+      padding: 1rem;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-top: 1rem;
     }
     
-    .btn-primary {
+    .event-section.active {
+      display: block;
+    }
+    
+    button {
       width: 100%;
       background: #667eea;
       color: white;
       border: none;
       padding: 1rem;
       border-radius: 8px;
-      font-size: 1rem;
+      font-size: 1.1rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
     }
     
-    .btn-primary:hover {
+    button:hover {
       background: #5568d3;
       transform: translateY(-1px);
     }
     
-    .btn-primary:disabled {
+    button:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
     }
     
+    .strava-connect {
+      display: none;
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+    
+    .strava-connect.active {
+      display: block;
+    }
+    
     .strava-btn {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      background: #fc4c02;
+      gap: 0.5rem;
+      background: #fc5200;
       color: white;
-      border: none;
-      padding: 1rem 2rem;
+      padding: 0.75rem 1.5rem;
       border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
       text-decoration: none;
+      font-weight: 600;
       transition: all 0.2s;
-      width: 100%;
     }
     
     .strava-btn:hover {
-      background: #e04402;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(252, 76, 2, 0.3);
-    }
-    
-    .strava-btn img {
-      height: 24px;
+      background: #e04700;
+      transform: translateY(-1px);
     }
     
     .message {
       padding: 1rem;
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 1rem;
       text-align: center;
     }
     
     .message.error {
-      background: #fee;
-      color: #c33;
-      border: 1px solid #fcc;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
     }
     
     .message.success {
-      background: #efe;
-      color: #3c3;
-      border: 1px solid #cfc;
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
     }
     
-    .success-message {
-      text-align: center;
-      padding: 2rem 0;
-    }
-    
-    .success-message h2 {
-      color: #10b981;
-      margin-bottom: 1rem;
-    }
-    
-    .success-message p {
+    .help-text {
+      font-size: 0.85rem;
       color: #666;
-      margin-bottom: 2rem;
+      margin-top: 0.25rem;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
-      <!-- Logo -->
       <div class="logo">
         <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
       </div>
       
-      <!-- Progress Steps -->
-      <div class="progress-steps">
-        <div class="step active" id="step1">1</div>
-        <div class="step" id="step2">2</div>
-      </div>
+      <h1>Welcome!</h1>
+      <p class="subtitle">Let's set up your personalized training plan</p>
       
-      <!-- Message Area -->
-      <div id="messageArea"></div>
+      <div id="messageContainer"></div>
       
-      <!-- Step 1: Profile Form -->
-      <div id="profileStep" class="form-section active">
-        <h1>Create Your Profile</h1>
-        <p class="subtitle">Tell us about yourself to create personalized training plans</p>
-        
-        <form id="profileForm" onsubmit="submitProfile(event)">
-          <!-- Name -->
-          <div class="form-group">
-            <label for="name">Name</label>
-            <input type="text" id="name" name="name" required>
-          </div>
-          
-          <!-- FTP -->
-          <div class="form-group">
-            <label for="ftp">
-              FTP (Functional Threshold Power)
-              <div class="input-hint">Your current FTP in watts - we'll refine this over time</div>
-            </label>
-            <input type="number" id="ftp" name="ftp" min="100" max="500" required>
-          </div>
-          
-          <!-- Weight -->
-          <div class="form-group">
-            <label for="weight">
-              Weight <span class="label-optional">(optional)</span>
-              <div class="input-hint">In kilograms - helps calculate power-to-weight ratio</div>
-            </label>
-            <input type="number" id="weight" name="weight" min="40" max="150" step="0.1">
-          </div>
-          
-          <!-- Training Goal -->
-          <div class="form-group">
-            <label for="goal">Training Goal</label>
-            <textarea id="goal" name="goal" placeholder="e.g., Improve FTP, Build aerobic base, Prepare for an event..." required></textarea>
-          </div>
-          
-          <!-- Weekly Hours -->
-          <div class="form-group">
-            <label for="hours">
-              Weekly Hours Available
-              <div class="input-hint">How many hours per week can you dedicate to training?</div>
-            </label>
-            <input type="number" id="hours" name="hours" min="3" max="30" required>
-          </div>
-          
-          <!-- Unavailable Days -->
-          <div class="form-group">
-            <label>Days You Can't Train</label>
-            <div class="checkbox-group">
-              <div class="checkbox-item">
-                <input type="checkbox" id="monday" name="unavailable" value="monday">
-                <label for="monday">Mon</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="tuesday" name="unavailable" value="tuesday">
-                <label for="tuesday">Tue</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="wednesday" name="unavailable" value="wednesday">
-                <label for="wednesday">Wed</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="thursday" name="unavailable" value="thursday">
-                <label for="thursday">Thu</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="friday" name="unavailable" value="friday">
-                <label for="friday">Fri</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="saturday" name="unavailable" value="saturday">
-                <label for="saturday">Sat</label>
-              </div>
-              <div class="checkbox-item">
-                <input type="checkbox" id="sunday" name="unavailable" value="sunday">
-                <label for="sunday">Sun</label>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Submit Button -->
-          <button type="submit" class="btn-primary" id="submitBtn">
-            Continue to Strava Connection
-          </button>
-        </form>
-      </div>
-      
-      <!-- Step 2: Strava Connection -->
-      <div id="stravaStep" class="form-section">
-        <div class="success-message">
-          <h2>✓ Profile Created!</h2>
-          <p>Now connect your Strava account to sync your rides and get personalized training plans.</p>
+      <form id="onboardingForm">
+        <!-- Basic Info -->
+        <div class="form-group">
+          <label for="name">Name <span class="required">*</span></label>
+          <input type="text" id="name" name="name" required placeholder="Your name">
         </div>
         
-        <a href="#" id="stravaConnectBtn" class="strava-btn">
-          <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Connect with Strava">
+        <!-- Training Goal -->
+        <div class="form-group">
+          <label for="trainingGoal">Training Goal <span class="required">*</span></label>
+          <select id="trainingGoal" name="trainingGoal" required>
+            <option value="">Select your primary goal...</option>
+            <option value="general_fitness">General Fitness</option>
+            <option value="event_preparation">Event Preparation</option>
+            <option value="competitive_racing">Competitive Racing</option>
+            <option value="endurance_building">Endurance Building</option>
+            <option value="weight_loss">Weight Loss & Health</option>
+          </select>
+        </div>
+        
+        <!-- Event Checkbox -->
+        <div class="checkbox-group">
+          <input type="checkbox" id="hasEvent" name="hasEvent">
+          <label for="hasEvent" style="margin-bottom: 0;">I have a target race or event</label>
+        </div>
+        
+        <!-- Event Details (conditional) -->
+        <div id="eventSection" class="event-section">
+          <div class="form-group">
+            <label for="eventDate">Event Date</label>
+            <input type="date" id="eventDate" name="eventDate">
+          </div>
+          
+          <div class="form-group">
+            <label for="eventType">Event Type</label>
+            <select id="eventType" name="eventType">
+              <option value="">Select event type...</option>
+              <option value="gran_fondo">Gran Fondo</option>
+              <option value="road_race">Road Race</option>
+              <option value="criterium">Criterium</option>
+              <option value="century">Century Ride</option>
+              <option value="time_trial">Time Trial</option>
+              <option value="stage_race">Stage Race</option>
+              <option value="triathlon">Triathlon</option>
+              <option value="sportive">Sportive</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- FTP -->
+        <div class="form-group">
+          <label for="ftp">FTP (Functional Threshold Power) <span class="required">*</span></label>
+          <input type="number" id="ftp" name="ftp" required placeholder="250" min="100" max="500">
+          <div class="help-text">Your current FTP in watts. If unsure, estimate based on recent rides.</div>
+        </div>
+        
+        <!-- Weight -->
+        <div class="form-group">
+          <label for="weight">Weight (kg) <span class="required">*</span></label>
+          <input type="number" id="weight" name="weight" required placeholder="75" min="40" max="150" step="0.1">
+        </div>
+        
+        <!-- Weekly Hours -->
+        <div class="form-group">
+          <label for="weeklyHours">Available Training Hours per Week <span class="required">*</span></label>
+          <input type="number" id="weeklyHours" name="weeklyHours" required placeholder="8" min="3" max="30">
+          <div class="help-text">How many hours per week can you dedicate to training?</div>
+        </div>
+        
+        <!-- Unavailable Days -->
+        <div class="form-group">
+          <label for="unavailableDays">Unavailable Days (comma-separated)</label>
+          <input type="text" id="unavailableDays" name="unavailableDays" placeholder="Monday, Wednesday">
+          <div class="help-text">Days when you can't train (optional)</div>
+        </div>
+        
+        <button type="submit" id="submitBtn">Continue to Strava Connection</button>
+      </form>
+      
+      <div id="stravaConnect" class="strava-connect">
+        <p style="margin-bottom: 1rem;">Profile created! Now connect your Strava account:</p>
+        <a href="#" id="stravaBtn" class="strava-btn">
+          <span>🚴</span>
           Connect with Strava
         </a>
-        
-        <p class="subtitle" style="margin-top: 1.5rem;">
-          We'll use your Strava data to analyze performance and suggest FTP updates
-        </p>
       </div>
     </div>
   </div>
 
- 
   <script>
     const apiBase = 'https://dabosch.fit/webhook';
     let athleteId = null;
-  // Check for error parameter and display it
+    
+    // Check for error parameter
     const urlParams = new URLSearchParams(window.location.search);
     const errorMsg = urlParams.get('error');
-
     if (errorMsg) {
       showMessage(errorMsg, 'error');
-      // Also auto-show the form if they came from failed login
-      showOnboardingForm();
     }
+    
+    // Toggle event section
+    document.getElementById('hasEvent').addEventListener('change', function() {
+      const eventSection = document.getElementById('eventSection');
+      const eventDate = document.getElementById('eventDate');
+      const eventType = document.getElementById('eventType');
+      
+      if (this.checked) {
+        eventSection.classList.add('active');
+        eventDate.required = true;
+        eventType.required = true;
+      } else {
+        eventSection.classList.remove('active');
+        eventDate.required = false;
+        eventType.required = false;
+        eventDate.value = '';
+        eventType.value = '';
+      }
+    });
+    
+    // Set minimum date to today
+    document.getElementById('eventDate').min = new Date().toISOString().split('T')[0];
     
     async function submitProfile(event) {
       event.preventDefault();
@@ -399,15 +330,33 @@
       btn.disabled = true;
       btn.textContent = 'Creating your profile...';
       
-      // Collect form data
+      // Calculate weeks to event if date is provided
+      let weeksToEvent = null;
+      if (document.getElementById('hasEvent').checked && document.getElementById('eventDate').value) {
+        const eventDate = new Date(document.getElementById('eventDate').value);
+        const today = new Date();
+        const diffTime = eventDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        weeksToEvent = Math.ceil(diffDays / 7);
+      }
+      
+      // Parse unavailable days into array
+      const unavailableDaysInput = document.getElementById('unavailableDays').value;
+      const unavailableDays = unavailableDaysInput 
+        ? unavailableDaysInput.split(',').map(d => d.trim()).filter(d => d.length > 0)
+        : null;
+      
       const formData = {
         name: document.getElementById('name').value,
         ftp_watts: parseInt(document.getElementById('ftp').value),
-        weight_kg: document.getElementById('weight').value ? parseFloat(document.getElementById('weight').value) : null,
-        training_goal: document.getElementById('goal').value,
-        weekly_hours_available: parseInt(document.getElementById('hours').value),
-        unavailable_days: Array.from(document.querySelectorAll('input[name="unavailable"]:checked'))
-          .map(cb => cb.value)
+        weight_kg: parseFloat(document.getElementById('weight').value),
+        training_goal: document.getElementById('trainingGoal').value,
+        weekly_hours_available: parseInt(document.getElementById('weeklyHours').value),
+        unavailable_days: unavailableDays,
+        target_event_date: document.getElementById('hasEvent').checked ? document.getElementById('eventDate').value : null,
+        target_event_type: document.getElementById('hasEvent').checked ? document.getElementById('eventType').value : null,
+        weeks_to_event: weeksToEvent,
+        training_goal_type: document.getElementById('hasEvent').checked ? 'event' : 'ongoing'
       };
       
       try {
@@ -421,20 +370,23 @@
           const data = await response.json();
           athleteId = data.athlete_id;
           
-          // Move to step 2
-          document.getElementById('profileStep').classList.remove('active');
-          document.getElementById('stravaStep').classList.add('active');
-          document.getElementById('step1').classList.add('complete');
-          document.getElementById('step2').classList.add('active');
+          showMessage('Profile created successfully!', 'success');
+          
+          // Show Strava connect section
+          document.getElementById('onboardingForm').style.display = 'none';
+          document.getElementById('stravaConnect').classList.add('active');
           
           // Set Strava connect URL with athlete_id
-          document.getElementById('stravaConnectBtn').href = 
-            `${apiBase}/api/strava/connect?athlete_id=${athleteId}`;
+          const stravaUrl = `${apiBase}/api/strava/connect?athlete_id=${athleteId}`;
+          document.getElementById('stravaBtn').href = stravaUrl;
           
         } else {
           const error = await response.json();
-          throw new Error(error.message || 'Failed to create profile');
+          showMessage(error.message || 'Error creating profile. Please try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Continue to Strava Connection';
         }
+        
       } catch (error) {
         showMessage('Error: ' + error.message, 'error');
         btn.disabled = false;
@@ -443,10 +395,11 @@
     }
     
     function showMessage(text, type) {
-      const container = document.getElementById('messageArea');
+      const container = document.getElementById('messageContainer');
       container.innerHTML = `<div class="message ${type}">${text}</div>`;
-      setTimeout(() => container.innerHTML = '', 5000);
     }
+    
+    document.getElementById('onboardingForm').addEventListener('submit', submitProfile);
   </script>
 </body>
 </html>

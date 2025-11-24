@@ -346,28 +346,17 @@
       window.location.href = '/';
     }
     
-    // Utility function to show messages
-    function showMessage(text, type) {
-      const container = document.getElementById('headerMessage');
-      container.innerHTML = `<div class="message ${type}">${text}</div>`;
-      setTimeout(() => container.innerHTML = '', 10000); // Show for 10 seconds
-    }
-    
     // Load and display athlete info
     async function loadAthleteInfo() {
       try {
-        const url = `https://dabosch.fit/webhook/8a22b6f6-2ef3-4c24-beeb-94ffa87d3c10/athletes/${athleteId}`;
-        const response = await fetch(url);
+        const response = await fetch(`https://dabosch.fit/webhook/8a22b6f6-2ef3-4c24-beeb-94ffa87d3c10/athletes/${athleteId}`);
         
         if (response.ok) {
-          const text = await response.text();
-          if (text && text.trim().length > 0) {
-            const athlete = JSON.parse(text);
-            document.getElementById('athleteInfo').innerHTML = `
-              Welcome back, <strong>${athlete.name}</strong>!
-            `;
-            document.title = `${athlete.name}'s Training Plan - Dave's AI Cycling Coach`;
-          }
+          const athlete = await response.json();
+          document.getElementById('athleteInfo').innerHTML = `
+            Welcome back, <strong>${athlete.name}</strong>!
+          `;
+          document.title = `${athlete.name}'s Training Plan - Dave's AI Cycling Coach`;
         }
       } catch (error) {
         console.error('Failed to load athlete info:', error);
@@ -464,55 +453,36 @@
     async function generatePlan() {
       const btn = document.getElementById('generateBtn');
       btn.disabled = true;
-      btn.textContent = 'Generating...';
+      btn.textContent = 'Generating... (90-120 sec)';
       
-      showMessage('🚀 Training plan generation started! This takes 2-5 minutes. The page will update automatically when ready.', 'success');
+      showMessage('Generating your personalized training plan...', 'success');
       
       try {
-        // Start the generation (don't wait for response - it will timeout)
-        fetch(`${apiBase}/generate-plan`, {
+        const response = await fetch(`${apiBase}/generate-plan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ athlete_id: athleteId })
-        }).catch(() => {
-          // Ignore timeout errors - the workflow continues server-side
         });
         
-        // Poll every 30 seconds to check if plan is ready
-        let attempts = 0;
-        const maxAttempts = 12; // 6 minutes max
-        
-        const checkInterval = setInterval(async () => {
-          attempts++;
-          
-          try {
-            const response = await fetch(`${apiBase}/athletes/workouts?athlete_id=${athleteId}`);
-            const workouts = await response.json();
-            
-            if (workouts && workouts.length > 0) {
-              clearInterval(checkInterval);
-              showMessage('✅ Training plan ready!', 'success');
-              loadWorkouts();
-              btn.disabled = false;
-              btn.textContent = 'Generate New Training Plan';
-            } else if (attempts >= maxAttempts) {
-              clearInterval(checkInterval);
-              showMessage('⚠️ Generation is taking longer than expected. Please refresh in a minute.', 'error');
-              btn.disabled = false;
-              btn.textContent = 'Generate New Training Plan';
-            } else {
-              btn.textContent = `Generating... (${attempts * 30}s)`;
-            }
-          } catch (error) {
-            console.error('Polling error:', error);
-          }
-        }, 30000); // Check every 30 seconds
+        if (response.ok) {
+          showMessage('Training plan generated successfully!', 'success');
+          setTimeout(() => loadWorkouts(), 1000);
+        } else {
+          showMessage('Error generating plan. Please try again.', 'error');
+        }
         
       } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+      } finally {
         btn.disabled = false;
         btn.textContent = 'Generate New Training Plan';
-        showMessage('Error starting generation. Please try again.', 'error');
       }
+    }
+    
+    function showMessage(text, type) {
+      const container = document.getElementById('headerMessage');
+      container.innerHTML = `<div class="message ${type}">${text}</div>`;
+      setTimeout(() => container.innerHTML = '', 5000);
     }
     
     // Initialize
