@@ -1,0 +1,453 @@
+{
+  "updatedAt": "2025-12-01T14:10:18.214Z",
+  "createdAt": "2025-10-04T17:04:46.211Z",
+  "id": "zssukQhjUVzMUeIv",
+  "name": "ride-feeback-generator",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/api/ride",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7d75e5e5-43ce-4c44-8bde-1ec4d2442e56",
+      "name": "Webhook",
+      "webhookId": "9b7c0991-fffa-4a19-a270-7c9e41408b32"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS(\n  SELECT 1\n  FROM athletes\n  WHERE id = {{ $json[\"athlete_id\"] }}\n) AS exists;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b71156bc-3513-411f-aff7-942929029559",
+      "name": "Check Athlete",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e459b6f7-c7d4-4354-af51-dae67ca9a4bc",
+              "leftValue": "=$json.exists",
+              "rightValue": "=  true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e7ee5f4c-a5a5-4afe-b8a2-726c64a71ad8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "=public",
+          "mode": "name"
+        },
+        "table": {
+          "__rl": true,
+          "value": "rides",
+          "mode": "list",
+          "cachedResultName": "rides"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "distance_km": "={{$json[\"distance_km\"]}}",
+            "duration_min": "={{$json[\"duration_min\"]}}",
+            "avg_power_watts": "={{$json[\"power_watts\"]}}",
+            "avg_heart_rate": "={{$json[\"avg_heart_rate\"]}}",
+            "tss": "={{$json[\"tss\"]}}",
+            "ride_date": "={{$json[\"ride_date\"]}}",
+            "athlete_id": "={{$json[\"athlete_id\"]}}",
+            "source": "={{$json[\"source\"]}}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ride_date",
+              "displayName": "ride_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "distance_km",
+              "displayName": "distance_km",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duration_min",
+              "displayName": "duration_min",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "avg_power_watts",
+              "displayName": "avg_power_watts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "avg_heart_rate",
+              "displayName": "avg_heart_rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tss",
+              "displayName": "tss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1184,
+        -128
+      ],
+      "id": "871cb3d4-315a-4208-9149-8b09c9b2ba3f",
+      "name": "Insert Ride",
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the payload from the webhook wrapper\nconst payload = $json.body || $json;\n\n// List of required fields in the ride schema\nconst required = [\n  'athlete_id',\n  'source',\n  'external_id',\n  'ride_date',\n  'duration_min',\n  'distance_km'\n];\n\n// Validate\nconst missing = required.filter(k => payload[k] === undefined || payload[k] === null);\nif (missing.length > 0) {\n  throw new Error(`Missing required fields: ${missing.join(', ')}`);\n}\n\n// Normalise numeric fields\n['duration_min', 'distance_km', 'avg_watts', 'np_watts', 'tss'].forEach(k => {\n  if (payload[k] !== undefined) payload[k] = Number(payload[k]);\n});\n\nreturn payload;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "514cbf81-b8bd-477b-9d83-e30f43857241",
+      "name": "Validate Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n passes the result (or error) from the previous node\nconst input = items[0].json;\n\n// If Insert Ride failed, n8n adds \"error\" info here\nif (input.error) {\n  return [{\n    json: {\n      status: 'error',\n      message: input.error.message || 'Database insert failed',\n      node: 'Insert Ride',\n      timestamp: new Date().toISOString(),\n    }\n  }];\n}\n\n// Otherwise it's a success\nreturn [{\n  json: {\n    status: 'ok',\n    message: 'Ride inserted successfully',\n    data: input,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -128
+      ],
+      "id": "28a051e5-f33b-441b-a1e7-94397de3fdcb",
+      "name": "Insert Ride \u2192 Handle Insert Result"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Athlete not found.\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "8a832c80-16b1-45fa-9cb6-302c3390c1f1",
+      "name": "Athlete not found"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": "={{ $json[\"status\"] == \"error\" ? 400 : 201 }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1600,
+        -128
+      ],
+      "id": "2451cf66-58a9-4a67-b372-529f497a82b4",
+      "name": "success/error"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fix for n8n v1.112.x where webhook data is nested twice under body\nconst webhookBody = $item(0).$node[\"Webhook\"].json.body?.body || $item(0).$node[\"Webhook\"].json.body;\n\nreturn [\n  {\n    json: webhookBody\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "399153e4-d712-40ce-b8d7-77860e64474b",
+      "name": "Prepare Insert Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO rides (\n  athlete_id,\n  ride_date,\n  distance_km,\n  duration_min,\n  avg_power_watts,\n  avg_heart_rate,\n  tss,\n  source\n)\nVALUES (\n  {{ $json[\"athlete_id\"] }},\n  '{{ $json[\"ride_date\"] }}',\n  {{ $json[\"distance_km\"] }},\n  {{ $json[\"duration_min\"] }},\n  {{ $json[\"avg_power_watts\"] ?? 0 }},\n  {{ $json[\"avg_heart_rate\"] ?? 0 }},\n  {{ $json[\"tss\"] ?? 0 }},\n  '{{ $json[\"source\"] || \"Unknown\" }}'\n)\nON CONFLICT (athlete_id, ride_date)\nDO NOTHING\nRETURNING id;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1232,
+        48
+      ],
+      "id": "06940ee2-7a9e-4568-88e9-d3c107f9bcd8",
+      "name": "Insert Ride (Upsert)",
+      "retryOnFail": true,
+      "alwaysOutputData": false,
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Athlete": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Prepare Insert Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Athlete not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Ride": {
+      "main": [
+        [
+          {
+            "node": "Insert Ride \u2192 Handle Insert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [
+          {
+            "node": "Check Athlete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Ride \u2192 Handle Insert Result": {
+      "main": [
+        [
+          {
+            "node": "success/error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "success/error": {
+      "main": [
+        []
+      ]
+    },
+    "Prepare Insert Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Ride (Upsert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Ride (Upsert)": {
+      "main": [
+        [
+          {
+            "node": "Insert Ride \u2192 Handle Insert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "5164a7ad-1501-4d66-9d66-5546b26ff415",
+  "versionCounter": 6,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:57:39.084Z",
+      "createdAt": "2025-12-01T13:57:39.084Z",
+      "role": "workflow:owner",
+      "workflowId": "zssukQhjUVzMUeIv",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

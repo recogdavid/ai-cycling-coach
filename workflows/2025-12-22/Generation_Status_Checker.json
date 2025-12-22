@@ -1,0 +1,257 @@
+{
+  "updatedAt": "2025-12-15T18:58:11.952Z",
+  "createdAt": "2025-12-15T18:34:15.634Z",
+  "id": "n4q7WnTcoekzoIRF",
+  "name": "Generation_Status_Checker",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "generation-status",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6cf1c35e-453f-4641-a10f-cd1dc1df45e5",
+      "name": "Webhook",
+      "webhookId": "dcf696fd-925d-4b5c-88fc-18fbd934d450"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e40f7fbf-d0e7-4ee1-8e51-bd4706d7f20d",
+              "leftValue": "={{ parseInt($node[\"Postgres\"].json[\"workout_count\"]) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "4e6a3a3b-28a4-4d21-bb5d-2cf1897c361a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6b2fef6a-37c1-460f-9ed3-e9462741f344",
+              "name": "complete",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "43e295c5-b46e-42ca-93a9-c76fa8767e3f",
+              "name": "progress",
+              "value": 100,
+              "type": "number"
+            },
+            {
+              "id": "520d4e7f-fc09-4a7d-93d9-10b550088362",
+              "name": "message",
+              "value": "Plan generation complete!",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "69511eaa-ef34-471a-b73f-2166ed8beb00",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "644bb290-bfc9-4745-8c74-7cfbe70d6e66",
+              "name": "complete",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "ed9b1ca9-8ac8-4cd5-9512-57484e7da778",
+              "name": "progress",
+              "value": 50,
+              "type": "number"
+            },
+            {
+              "id": "5fa387a9-1ffb-481b-9f92-6e8e290bcc5c",
+              "name": "message",
+              "value": "Generating workouts...",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "548317aa-d668-4894-b587-1d4ab26c6375",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as workout_count\nFROM planned_workouts\nWHERE athlete_id = {{ $json.query.athlete_id }}\n  AND scheduled_date >= CURRENT_DATE;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "f8b85fe4-632d-46d2-bfae-56b38cba575b",
+      "name": "Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "accept": "application/json",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "athlete_id=6; rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX185VatpXtwM7wPMcbirkEKcJCI4EcovjnE%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX19YlFz1rQgL4oUarT%2FXQLxt49YBxtp6PGY%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2FDN%2Flbsl4JD2s1vm7sQdntr1LOttaIikCACrpbQKYDiDdKjuj8hSjd4JImFfvAVpRn8QHf8C7DUg%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2BaLNojaLNEGJOrfnbgun2J2b2vfagf0tuawTPxHbB25dSqpA3SLG7YSDzXDk8WNFlcFmFvs6OYpb9tJhve4rcrTm5TcnOpIHPkNOwzDv%2BqN5yxdXN3dKtI3hjNLGmbraJrISnVrr2L7c%2FmoRakFMxpP5EP93ad%2Fvk%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX19PFThiSOSQwbbWITX51o6op1IGhO0lnseGW2I3f8ZaJ8ZDGrC7t741To1VlRWAvnEhN9HgRTIUZ%2BvwJtr8dqaMA8LszGBU%2FgoyjvI%2FfDj7AoMHHoCTwiqC%2FCRhF4BIqlmmhrA2r6oC6opTfpTL7IJI7EWiTNNLJkk%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1765824798103%2C%22019b233a-ca11-7456-803e-7f76901ca89a%22%2C1765822614032%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2B4Fpzak9BCTgacO9shRYNxhA41C75q1QG6X1Z3o177wbULRE75JHlhC67EgsxkfGxyXgpShabgX%2FnhcpY83TQJgdqmrHCl61D5c6IRRIxLmstRfuRpC%2BUIxpWn%2Bpd%2BZy7Cc3MduvKzcQ%3D%3D"
+          },
+          "params": {},
+          "query": {
+            "athlete_id": "6"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/generation-status",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "b0e338fc-3553-4023-b847-de1de24de5e7",
+  "versionCounter": 10,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-15T18:34:15.634Z",
+      "createdAt": "2025-12-15T18:34:15.634Z",
+      "role": "workflow:owner",
+      "workflowId": "n4q7WnTcoekzoIRF",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}
