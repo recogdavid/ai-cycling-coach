@@ -11,19 +11,19 @@
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       padding: 2rem;
     }
-    
+
     .container {
       max-width: 1200px;
       margin: 0 auto;
     }
-    
+
     header {
       background: white;
       padding: 2rem;
@@ -32,39 +32,35 @@
       margin-bottom: 2rem;
       position: relative;
     }
-    
-    /* Header Content */
+
     .header-content {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1rem;
     }
-    
-    /* App Logo */
+
     .app-logo {
       display: flex;
       align-items: center;
       gap: 1rem;
     }
-    
+
     .app-logo img {
       height: 50px;
       width: auto;
     }
-    
-    /* Athlete Info */
+
     .athlete-info {
       color: #222;
       font-size: 1.1rem;
     }
-    
+
     .athlete-info strong {
       font-weight: 600;
       color: #667eea;
     }
-    
-    /* Strava Badge */
+
     .strava-badge {
       position: absolute;
       top: 1rem;
@@ -74,28 +70,28 @@
       text-decoration: none;
       transition: all 0.2s;
     }
-    
+
     .strava-badge:hover {
       transform: translateY(-1px);
     }
-    
+
     .strava-badge img {
       height: 30px;
       width: auto;
     }
-    
+
     .subtitle {
       color: #666;
       font-size: 0.9rem;
       margin-bottom: 1.5rem;
     }
-    
+
     .actions {
       display: flex;
       gap: 1rem;
       flex-wrap: wrap;
     }
-    
+
     button {
       background: #667eea;
       color: white;
@@ -106,40 +102,40 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    
+
     button:hover {
       background: #5568d3;
       transform: translateY(-1px);
     }
-    
+
     button:disabled {
       background: #ccc;
       cursor: not-allowed;
       transform: none;
     }
-    
+
     .btn-secondary {
       background: #f3f4f6;
       color: #374151;
     }
-    
+
     .btn-secondary:hover {
       background: #e5e7eb;
     }
-    
+
     .loading {
       text-align: center;
       padding: 2rem;
       color: white;
       font-size: 1.2rem;
     }
-    
+
     .workouts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 1.5rem;
     }
-    
+
     .workout-card {
       background: white;
       padding: 1.5rem;
@@ -148,72 +144,86 @@
       border-left: 4px solid;
       transition: transform 0.2s;
     }
-    
+
     .workout-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 12px rgba(0,0,0,0.15);
     }
-    
+
     .workout-card.recovery, .workout-card.activerecovery { border-left-color: #6b7280; }
     .workout-card.endurance { border-left-color: #10b981; }
     .workout-card.tempo { border-left-color: #f59e0b; }
     .workout-card.sweetspot { border-left-color: #f97316; }
     .workout-card.threshold { border-left-color: #ef4444; }
     .workout-card.vo2max { border-left-color: #8b5cf6; }
-    .workout-card.anaerobiccapacity { border-left-color: #ec4899; }
+    .workout-card.anaerobic, .workout-card.anaerobiccapacity, .workout-card.anaerobicintervals { border-left-color: #ec4899; }
     .workout-card.sprints { border-left-color: #dc2626; }
-    .workout-card.restday { border-left-color: #d1d5db; }
-    
+    .workout-card.rest, .workout-card.restday { border-left-color: #d1d5db; }
+
     .workout-date {
       font-size: 0.85rem;
       color: #666;
       margin-bottom: 0.5rem;
     }
-    
+
     .workout-type {
       font-size: 1.2rem;
       font-weight: bold;
       color: #222;
       margin-bottom: 0.5rem;
     }
-    
+
     .workout-description {
       color: #555;
       margin-bottom: 1rem;
       line-height: 1.5;
     }
-    
+
     .workout-stats {
       display: flex;
       gap: 1rem;
       font-size: 0.85rem;
       margin-bottom: 1rem;
     }
-    
+
     .stat {
       display: flex;
       flex-direction: column;
     }
-    
+
     .stat-label {
       color: #999;
       font-size: 0.75rem;
       text-transform: uppercase;
     }
-    
+
     .stat-value {
       color: #222;
       font-weight: bold;
       font-size: 1.1rem;
     }
-    
-    .workout-downloads {
-      display: flex;
-      gap: 0.5rem;
+
+    .workout-actions {
       padding-top: 1rem;
       border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
     }
-    
+
+    .workout-actions .view-intervals-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        background-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .workout-actions .view-intervals-btn:hover {
+        background-color: #d1d5db;
+    }
+
     .download-btn {
       display: inline-flex;
       align-items: center;
@@ -227,13 +237,13 @@
       font-weight: 500;
       transition: all 0.2s;
     }
-    
+
     .download-btn:hover {
       background: #667eea;
       color: white;
       transform: translateY(-1px);
     }
-    
+
     .message {
       background: white;
       padding: 1rem;
@@ -241,10 +251,12 @@
       margin-top: 1rem;
       text-align: center;
     }
-    
+
     .message.success { border-left: 4px solid #10b981; }
     .message.error { border-left: 4px solid #ef4444; }
-    
+    .message.info { border-left: 4px solid #3b82f6; }
+    .message.warning { border-left: 4px solid #f59e0b; }
+
     .empty-state {
       background: white;
       padding: 3rem;
@@ -252,12 +264,12 @@
       text-align: center;
       color: #666;
     }
-    
+
     .empty-state h2 {
       color: #222;
       margin-bottom: 1rem;
     }
-    
+
     footer {
       margin-top: 3rem;
       text-align: center;
@@ -266,167 +278,380 @@
       border-radius: 12px;
       backdrop-filter: blur(10px);
     }
-    
+
     .footer-content {
       color: white;
       font-size: 0.85rem;
       margin-bottom: 1rem;
     }
-    
+
     .footer-strava img {
       height: 28px;
       width: auto;
+    }
+
+    /* === MODAL STYLES === */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.6);
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 2rem;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 700px;
+      border-radius: 12px;
+      position: relative;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .close-btn {
+      color: #aaa;
+      position: absolute;
+      top: 1rem;
+      right: 1.5rem;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close-btn:hover,
+    .close-btn:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* === DETAILED WORKOUT VIEW STYLES === */
+    #modalIntervalsContainer {
+      font-family: 'Segoe UI', sans-serif;
+      color: #333;
+    }
+
+    .workout-step {
+      margin-bottom: 1.25rem;
+      padding-left: 1rem;
+      border-left: 3px solid #e5e7eb;
+    }
+
+    .step-header {
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-summary {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-details {
+      list-style-type: none;
+      padding-left: 0;
+      font-size: 0.9rem;
+    }
+
+    .step-details li {
+      margin-bottom: 0.25rem;
+      padding-left: 1rem;
+      color: #555;
+    }
+
+    .workout-step.warmup { border-left-color: #34d399; }
+    .workout-step.recovery { border-left-color: #9ca3af; }
+    .workout-step.cooldown { border-left-color: #60a5fa; }
+    .workout-step.interval { border-left-color: #ef4444; }
+
+    /* Progress bar styles */
+    .progress-container {
+      width: 100%;
+      background-color: #e5e7eb;
+      border-radius: 4px;
+      margin-top: 1rem;
+      height: 8px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background-color: #667eea;
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: white;
+      text-align: center;
+    }
+
+    /* Spinner styles */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .action-button {
+      padding: 0.5rem 1rem;
+      background: #f3f4f6;
+      color: #374151;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .action-button:hover {
+      background: #e5e7eb;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <!-- Strava Badge (top right) -->
       <a href="https://www.strava.com" target="_blank" class="strava-badge" title="Powered by Strava">
         <img src="/assets/strava/api_logo_pwrdBy_strava_stack_orange.svg" alt="Powered by Strava">
       </a>
-      
-      <!-- Header Content with Logo and Athlete Info -->
       <div class="header-content">
         <div class="app-logo">
           <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
         </div>
-        <div class="athlete-info" id="athleteInfo">
-          <!-- Populated by JS -->
+        <div class="athlete-info" id="athleteInfo"></div>
+      </div>
+      <p class="subtitle">Your personalized training dashboard</p>
+      <div class="actions">
+        <button id="generateBtn">Generate New Training Plan</button>
+        <button id="signOutBtn" class="btn-secondary">Sign Out</button>
+      </div>
+      <div id="headerMessage"></div>
+      <div id="progressContainer" style="display: none;">
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText">Generating your training plan...</div>
+        <div class="action-buttons" id="progressActions" style="display: none;">
+          <button class="action-button" id="cancelGenerationBtn">Cancel</button>
+          <button class="action-button" id="refreshStatusBtn">Refresh Status</button>
         </div>
       </div>
-      
-      <p class="subtitle">Your personalized training dashboard</p>
-      
-      <div class="actions">
-        <button id="generateBtn" onclick="generatePlan()">Generate New Training Plan</button>
-        <button class="btn-secondary" onclick="signOut()">Sign Out</button>
-      </div>
-      
-      <div id="headerMessage"></div>
     </header>
-    
-    <div id="loading" class="loading" style="display:none;">
-      Loading your training plan...
-    </div>
-    
+
+    <div id="loading" class="loading" style="display:none;">Loading your training plan...</div>
     <div id="workoutsContainer" class="workouts-grid"></div>
-    
     <div id="emptyState" class="empty-state" style="display:none;">
       <h2>No Training Plan Yet</h2>
       <p>Click "Generate New Training Plan" to create your personalized weekly schedule</p>
     </div>
-    
+
     <footer>
-      <div class="footer-content">
-        Privacy-First Training • All AI Processing Local • Your Data Stays Secure
-      </div>
+      <div class="footer-content">Privacy-First Training • All AI Processing Local • Your Data Stays Secure</div>
       <div class="footer-strava">
         <img src="/assets/strava/api_logo_pwrdBy_strava_stack_white.svg" alt="Powered by Strava">
       </div>
     </footer>
   </div>
 
+  <!-- MODAL -->
+  <div id="intervalModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn">&times;</span>
+      <h3 id="modalWorkoutType">Workout Details</h3>
+      <div id="modalIntervalsContainer"></div>
+    </div>
+  </div>
+
   <script>
     const apiBase = 'https://dabosch.fit/webhook';
-    
-    // Get athlete_id from cookie
+    let generationInterval = null;
+    let lastWorkoutCount = 0;
+    let generationJobId = null;
+
+    // Initialize the app when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set up event listeners
+      document.getElementById('generateBtn').addEventListener('click', generatePlan);
+      document.getElementById('signOutBtn').addEventListener('click', signOut);
+      document.getElementById('cancelGenerationBtn').addEventListener('click', cancelGeneration);
+      document.getElementById('refreshStatusBtn').addEventListener('click', refreshStatus);
+
+      // Initialize the app
+      initApp();
+    });
+
+    function initApp() {
+      const athleteId = getCookie('athlete_id');
+
+      if (!athleteId) {
+        window.location.href = '/';
+        return;
+      }
+
+      // Load athlete info and workouts
+      loadAthleteInfo();
+      loadWorkouts();
+    }
+
     function getCookie(name) {
       const value = `; ${document.cookie}`;
       const parts = value.split(`; ${name}=`);
       if (parts.length === 2) return parts.pop().split(';').shift();
       return null;
     }
-    
-    const athleteId = getCookie('athlete_id');
-    
-    // Redirect to login if not authenticated
-    if (!athleteId) {
-      window.location.href = '/';
-    }
-    
-    // Utility function to show messages
+
     function showMessage(text, type) {
       const container = document.getElementById('headerMessage');
       container.innerHTML = `<div class="message ${type}">${text}</div>`;
-      setTimeout(() => container.innerHTML = '', 10000); // Show for 10 seconds
+      setTimeout(() => container.innerHTML = '', 10000);
     }
-    
-    // Load and display athlete info
-    async function loadAthleteInfo() {
-      try {
-        const url = `https://dabosch.fit/webhook/8a22b6f6-2ef3-4c24-beeb-94ffa87d3c10/athletes/${athleteId}`;
-        const response = await fetch(url);
-        
-        if (response.ok) {
-          const text = await response.text();
-          if (text && text.trim().length > 0) {
-            const athlete = JSON.parse(text);
-            document.getElementById('athleteInfo').innerHTML = `
-              Welcome back, <strong>${athlete.name}</strong>!
-            `;
-            document.title = `${athlete.name}'s Training Plan - Dave's AI Cycling Coach`;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load athlete info:', error);
+
+    function updateProgress(percentage, text, showSpinner = false) {
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const progressContainer = document.getElementById('progressContainer');
+      const progressActions = document.getElementById('progressActions');
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = `${percentage}%`;
+
+      if (showSpinner) {
+        progressText.innerHTML = `<div class="spinner"></div>${text}`;
+      } else {
+        progressText.textContent = text;
+      }
+
+      if (generationJobId) {
+        progressActions.style.display = 'flex';
       }
     }
-    
+
+    function hideProgress() {
+      document.getElementById('progressContainer').style.display = 'none';
+      document.getElementById('progressActions').style.display = 'none';
+    }
+
+    async function loadAthleteInfo() {
+      try {
+        const athleteId = getCookie('athlete_id');
+        const url = `https://dabosch.fit/webhook/c29d4bfe-aad8-4fbc-b97f-447b9ac009b9/athletes/get/${athleteId}`;
+        const response = await fetch(url, {
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const athlete = await response.json();
+        document.getElementById('athleteInfo').innerHTML = `Welcome back, <strong>${athlete.name}</strong>!`;
+        document.title = `${athlete.name}'s Training Plan - Dave's AI Cycling Coach`;
+
+      } catch (error) {
+        console.error('Failed to load athlete info:', error);
+        showMessage('Failed to load athlete information. Please refresh the page.', 'error');
+      }
+    }
+
     function signOut() {
-      // Clear cookie
       document.cookie = 'athlete_id=; Path=/; Max-Age=0';
-      // Redirect to home
       window.location.href = '/';
     }
-    
+
     function formatDate(dateStr) {
       const date = new Date(dateStr);
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+      return `${days[date.getUTCDay()]}, ${months[date.getUTCMonth()]} ${date.getUTCDate()}`;
     }
-    
+
     function getWorkoutClass(type) {
+      if (!type) return 'endurance';
       return type.toLowerCase().replace(/\s+/g, '');
     }
-    
+
     async function loadWorkouts() {
       document.getElementById('loading').style.display = 'block';
       document.getElementById('workoutsContainer').innerHTML = '';
       document.getElementById('emptyState').style.display = 'none';
-      
+
       try {
-        const response = await fetch(`${apiBase}/athletes/workouts?athlete_id=${athleteId}`);
-        let workouts = await response.json();
-        
-        if (!Array.isArray(workouts)) {
-          workouts = [workouts];
+        const athleteId = getCookie('athlete_id');
+        const response = await fetch(`${apiBase}/athletes/workouts?athlete_id=${athleteId}`, {
+          signal: AbortSignal.timeout(15000)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
+        const workouts = await response.json();
         document.getElementById('loading').style.display = 'none';
-        
+
         if (!workouts || workouts.length === 0) {
           document.getElementById('emptyState').style.display = 'block';
           return;
         }
-        
+
         renderWorkouts(workouts);
-        
+        lastWorkoutCount = workouts.length;
+
       } catch (error) {
         document.getElementById('loading').style.display = 'none';
-        showMessage('Error loading workouts: ' + error.message, 'error');
+        console.error('Error loading workouts:', error);
+
+        if (error.name === 'TimeoutError') {
+          showMessage('Loading workouts timed out. Please try again.', 'error');
+        } else {
+          showMessage('Error loading workouts. Please try again.', 'error');
+        }
       }
     }
-    
+
     function renderWorkouts(workouts) {
       const container = document.getElementById('workoutsContainer');
-      
+      container.innerHTML = '';
+
       workouts.forEach(workout => {
         const card = document.createElement('div');
-        card.className = `workout-card ${getWorkoutClass(workout.workout_type || 'endurance')}`;
-        
+        card.className = `workout-card ${getWorkoutClass(workout.workout_type)}`;
+
+        const intervalsArray = workout.intervals?.data?.data || workout.intervals?.data || workout.intervals;
+        const hasIntervals = intervalsArray && Array.isArray(intervalsArray) && intervalsArray.length > 0;
+
         card.innerHTML = `
           <div class="workout-date">${formatDate(workout.scheduled_date)}</div>
           <div class="workout-type">${workout.workout_type || 'Workout'}</div>
@@ -434,90 +659,326 @@
           <div class="workout-stats">
             <div class="stat">
               <span class="stat-label">Duration</span>
-              <span class="stat-value">${workout.duration_minutes || 0} min</span>
+              <span class="stat-value">${workout.duration_minutes ? workout.duration_minutes + ' min' : 'N/A'}</span>
             </div>
             <div class="stat">
               <span class="stat-label">TSS</span>
-              <span class="stat-value">${workout.target_tss || 0}</span>
+              <span class="stat-value">${workout.target_tss || 'N/A'}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Type</span>
+              <span class="stat-value">${workout.workout_type || 'N/A'}</span>
             </div>
           </div>
-          <div class="workout-downloads">
-            <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=zwo" 
-               class="download-btn" 
-               download
-               title="Download for Zwift">
-              📥 .zwo (Zwift)
-            </a>
-            <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=fit" 
-               class="download-btn" 
-               download
-               title="Download for Garmin/Wahoo">
-              📥 .fit (Garmin/Wahoo)
-            </a>
-          </div>
+          <div class="workout-actions">
+            ${hasIntervals ? `<button class="view-intervals-btn" data-workout-id="${workout.id}">View Intervals</button>` : ''}
+           <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=zwo" class="download-btn">Download ZWO <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>
+           <a href="${apiBase}/workout-download?workout_id=${workout.id}&format=fit" class="download-btn">Download FIT <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></a>
+  </div>
         `;
-        
+
         container.appendChild(card);
+
+        if (hasIntervals) {
+          const viewBtn = card.querySelector('.view-intervals-btn');
+          if (viewBtn) {
+            viewBtn.addEventListener('click', () => showIntervalsModal(workout));
+          }
+        }
       });
     }
-    
+
     async function generatePlan() {
-      const btn = document.getElementById('generateBtn');
-      btn.disabled = true;
-      btn.textContent = 'Generating...';
-      
-      showMessage('🚀 Training plan generation started! This takes 2-5 minutes. The page will update automatically when ready.', 'success');
-      
       try {
-        // Start the generation (don't wait for response - it will timeout)
-        fetch(`${apiBase}/generate-plan`, {
+        const athleteId = getCookie('athlete_id');
+        document.getElementById('generateBtn').disabled = true;
+        showMessage('Starting plan generation...', 'info');
+
+        updateProgress(0, 'Starting generation process...', true);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+        const initResponse = await fetch(`${apiBase}/generate-plan`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ athlete_id: athleteId })
-        }).catch(() => {
-          // Ignore timeout errors - the workflow continues server-side
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            athlete_id: athleteId,
+          }),
+          signal: controller.signal
         });
-        
-        // Poll every 30 seconds to check if plan is ready
-        let attempts = 0;
-        const maxAttempts = 12; // 6 minutes max
-        
-        const checkInterval = setInterval(async () => {
-          attempts++;
-          
+
+        clearTimeout(timeoutId);
+
+        if (!initResponse.ok) {
+          let errorMessage = 'Failed to start plan generation';
           try {
-            const response = await fetch(`${apiBase}/athletes/workouts?athlete_id=${athleteId}`);
-            const workouts = await response.json();
-            
-            if (workouts && workouts.length > 0) {
-              clearInterval(checkInterval);
-              showMessage('✅ Training plan ready!', 'success');
-              loadWorkouts();
-              btn.disabled = false;
-              btn.textContent = 'Generate New Training Plan';
-            } else if (attempts >= maxAttempts) {
-              clearInterval(checkInterval);
-              showMessage('⚠️ Generation is taking longer than expected. Please refresh in a minute.', 'error');
-              btn.disabled = false;
-              btn.textContent = 'Generate New Training Plan';
-            } else {
-              btn.textContent = `Generating... (${attempts * 30}s)`;
-            }
-          } catch (error) {
-            console.error('Polling error:', error);
+            const errorData = await initResponse.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = initResponse.statusText || errorMessage;
           }
-        }, 30000); // Check every 30 seconds
-        
+
+          showMessage(`Error starting generation: ${errorMessage}`, 'error');
+          document.getElementById('generateBtn').disabled = false;
+          hideProgress();
+          return;
+        }
+
+        let initData;
+        try {
+          initData = await initResponse.json();
+          generationJobId = initData.job_id;
+        } catch (e) {
+          console.log('Generation started, but no JSON response received');
+        }
+
+        if (generationJobId) {
+          updateProgress(0, `Generation started (Job ID: ${generationJobId})...`, true);
+        } else {
+          updateProgress(0, 'Generation started. Checking status...', true);
+        }
+
+        startStatusPolling();
+
       } catch (error) {
-        btn.disabled = false;
-        btn.textContent = 'Generate New Training Plan';
-        showMessage('Error starting generation. Please try again.', 'error');
+        console.error('Error in generatePlan:', error);
+
+        if (error.name === 'AbortError') {
+          showMessage('Generation request timed out. Please try again.', 'error');
+        } else {
+          showMessage('Error generating plan: ' + error.message, 'error');
+        }
+
+        document.getElementById('generateBtn').disabled = false;
+        hideProgress();
       }
     }
+
+    function startStatusPolling() {
+      let attempts = 0;
+      const maxAttempts = 30;
+      let generationComplete = false;
+
+      if (generationInterval) {
+        clearInterval(generationInterval);
+      }
+
+      generationInterval = setInterval(async () => {
+        attempts++;
+
+        try {
+          const athleteId = getCookie('athlete_id');
+          let statusUrl = `${apiBase}/generation-status?athlete_id=${athleteId}`;
+
+          if (generationJobId) {
+            statusUrl += `&job_id=${generationJobId}`;
+          }
+
+          const statusResponse = await fetch(statusUrl, {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(15000)
+          });
+
+          if (!statusResponse.ok) {
+            throw new Error(`Status check failed: ${statusResponse.status}`);
+          }
+
+          const status = await statusResponse.json();
+
+          if (status.complete) {
+            clearInterval(generationInterval);
+            generationComplete = true;
+            updateProgress(100, 'Plan generation complete! Loading your new workouts...', true);
+            await loadWorkouts();
+            showMessage('Training plan generated successfully!', 'success');
+            hideProgress();
+            document.getElementById('generateBtn').disabled = false;
+            generationJobId = null;
+            return;
+          }
+
+          const progress = Math.min(90, status.progress || 0);
+          let progressText = status.message || `Generating your plan (${progress}%)...`;
+
+          if (generationJobId) {
+            progressText += ` (Job ID: ${generationJobId})`;
+          }
+
+          updateProgress(progress, progressText, true);
+
+        } catch (error) {
+          console.error('Error checking generation status:', error);
+          const message = error.name === 'TimeoutError'
+            ? 'Status check timed out. Continuing to check...'
+            : 'Error checking generation status. Continuing to check...';
+          showMessage(message, 'warning');
+        }
+
+        if (attempts >= maxAttempts && !generationComplete) {
+          clearInterval(generationInterval);
+          showMessage('Plan generation is taking longer than expected. We\'ll continue checking in the background.', 'info');
+          updateProgress(0, 'Generation in progress. Checking status...', true);
+          document.getElementById('generateBtn').disabled = false;
+        }
+      }, 30000);
+    }
+
+    async function cancelGeneration() {
+      if (!generationJobId) {
+        showMessage('No active generation to cancel.', 'info');
+        return;
+      }
+
+      try {
+        const athleteId = getCookie('athlete_id');
+        const cancelResponse = await fetch(`${apiBase}/cancel-generation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            athlete_id: athleteId,
+            job_id: generationJobId
+          }),
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (!cancelResponse.ok) {
+          throw new Error(`Cancel request failed: ${cancelResponse.status}`);
+        }
+
+        clearInterval(generationInterval);
+        generationJobId = null;
+        hideProgress();
+        showMessage('Generation cancelled successfully.', 'info');
+        document.getElementById('generateBtn').disabled = false;
+
+      } catch (error) {
+        console.error('Error cancelling generation:', error);
+        showMessage('Error cancelling generation: ' + error.message, 'error');
+      }
+    }
+
+    async function refreshStatus() {
+      if (!generationJobId) {
+        showMessage('No active generation to check.', 'info');
+        return;
+      }
+
+      try {
+        const athleteId = getCookie('athlete_id');
+        const statusResponse = await fetch(`${apiBase}/generation-status?athlete_id=${athleteId}&job_id=${generationJobId}`, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (!statusResponse.ok) {
+          throw new Error(`Status check failed: ${statusResponse.status}`);
+        }
+
+        const status = await statusResponse.json();
+
+        if (status.complete) {
+          clearInterval(generationInterval);
+          updateProgress(100, 'Plan generation complete! Loading your new workouts...', true);
+          await loadWorkouts();
+          showMessage('Training plan generated successfully!', 'success');
+          hideProgress();
+          document.getElementById('generateBtn').disabled = false;
+          generationJobId = null;
+          return;
+        }
+
+        const progress = Math.min(90, status.progress || 0);
+        let progressText = status.message || `Generating your plan (${progress}%)...`;
+        progressText += ` (Job ID: ${generationJobId})`;
+
+        updateProgress(progress, progressText, true);
+        showMessage('Status refreshed successfully.', 'info');
+
+      } catch (error) {
+        console.error('Error refreshing status:', error);
+        showMessage('Error refreshing status: ' + error.message, 'error');
+      }
+    }
+
     
-    // Initialize
-    loadAthleteInfo();
-    loadWorkouts();
+    function showIntervalsModal(workout) {
+      const modal = document.getElementById('intervalModal');
+      const modalContent = document.getElementById('modalIntervalsContainer');
+      const workoutType = document.getElementById('modalWorkoutType');
+
+      workoutType.textContent = `${workout.workout_type || 'Workout'} Details`;
+      modalContent.innerHTML = '';
+
+      const intervalsArray = workout.intervals?.data?.data || workout.intervals?.data || workout.intervals;
+
+      if (!intervalsArray || !Array.isArray(intervalsArray) || intervalsArray.length === 0) {
+        modalContent.innerHTML = '<p>No interval details available for this workout.</p>';
+        modal.style.display = 'block';
+        return;
+      }
+
+      intervalsArray.forEach((interval, index) => {
+        const intervalDiv = document.createElement('div');
+    // Use the 'type' we added in the n8n workflow for styling
+        intervalDiv.className = `workout-step ${interval.type || 'interval'}`;
+
+        let intervalContent = `
+          <div class="step-header">${interval.name || `Interval ${index + 1}`}</div>
+          <div class="step-summary">${interval.description || ''}</div>
+          <ul class="step-details">
+        `;
+
+        if (interval.duration) {
+          intervalContent += `<li><strong>Duration:</strong> ${interval.duration}</li>`;
+        }
+    
+    // Check for the new, structured target_power object
+        if (interval.target_power && typeof interval.target_power === 'object' && interval.target_power.percentage_ftp) {
+          const powerDisplay = `${interval.target_power.percentage_ftp} (${interval.target_power.absolute_watts || ''})`;
+          intervalContent += `<li><strong>Target Power:</strong> ${powerDisplay.replace('()', '').trim()}</li>`;
+        } else if (interval.intensity) { // Fallback for older formats or warmup/cooldown
+          intervalContent += `<li><strong>Intensity:</strong> ${interval.intensity}</li>`;
+        }
+    
+        if (interval.cadence) {
+          intervalContent += `<li><strong>Cadence:</strong> ${interval.cadence}</li>`;
+        }
+
+        if (interval.repeats) {
+          intervalContent += `<li><strong>Repeats:</strong> ${interval.repeats}</li>`;
+        }  
+
+        intervalContent += '</ul>';
+        intervalDiv.innerHTML = intervalContent;
+        modalContent.appendChild(intervalDiv);
+      });
+
+      modal.style.display = 'block';
+
+      const closeBtn = document.querySelector('.close-btn');
+      closeBtn.onclick = function() {
+      modal.style.display = 'none';
+      };
+
+      window.onclick = function(event) {
+        if (event.target === modal) {
+          modal.style.display = 'none';
+        } 
+      };
+    }
+
+    window.addEventListener('beforeunload', function() {
+      if (generationInterval) {
+        clearInterval(generationInterval);
+      }
+    });
   </script>
 </body>
 </html>

@@ -148,7 +148,7 @@
   <div class="container">
     <header>
       <div class="logo">
-        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach" style="filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
+        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach" #style="filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
       </div>
       <h1>Personalized Cycling Training</h1>
       <p class="tagline">AI-powered plans based on your Strava data</p>
@@ -160,9 +160,10 @@
       </div>
       
       <div class="cta-buttons" style="margin-top: 0.5rem;">
-        <a href="https://dabosch.fit/webhook/api/strava/connect?action=login" style="display: inline-block; transition: transform 0.2s;">
-          <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Sign In with Strava" style="height: 48px; width: auto;">
-        </a>
+	
+	<a href="https://www.strava.com/oauth/authorize?client_id=180641&response_type=code&redirect_uri=https://dabosch.fit/webhook/api/strava/callback&scope=read,activity:read_all,profile:read_all&state=login" class="strava-connect-btn">
+        <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Sign In with Strava" style="height: 48px; width: auto;">
+        </a> 
       </div>
       
       <p class="helper-text">

@@ -20,7 +20,8 @@ services:
       - ai-coach-net
       
   n8n:
-    image: n8nio/n8n:latest
+    image: docker.n8n.io/n8nio/n8n
+      #command: ["/bin/sh", "-c", "ls -la /usr/local/lib/node_modules/n8n/bin/ && /usr/local/lib/node_modules/n8n/bin/n8n"] 
     restart: unless-stopped
     env_file:
       - .env
@@ -29,8 +30,8 @@ services:
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: aicoach_db
-      DB_POSTGRESDB_USER: aicoach_user
-      DB_POSTGRESDB_PASSWORD: D4bosch!609
+      DB_POSTGRESDB_USER: postgres
+      DB_POSTGRESDB_PASSWORD: postgres
       N8N_LISTEN_ADDRESS: 0.0.0.0
       N8N_BASIC_AUTH_ACTIVE: 'true'
       N8N_BASIC_AUTH_USER: n8n_admin
@@ -42,12 +43,17 @@ services:
       GENERIC_TIMEZONE: Europe/London
       WEBHOOK_URL: https://dabosch.fit/
       N8N_EDITOR_BASE_URL: https://n8n.dabosch.fit/
+      N8N_USER: "node"  
+      N8N_DATABASE_MIGRATIONS_ENABLED: "true"
+      N8N_DATABASE_MIGRATIONS_TABLE: "n8n_migrations"
+      N8N_WORKFLOW_FOLDER: "/home/node/.n8n/workflows" 
+      N8N_DATABASE_AUTO_CREATE: "true"  
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./n8n-custom-packages/node_modules:/usr/local/lib/node_modules
       - ./data/n8n:/home/node/.n8n
+      - /root/ai-cycling-coach/workflows/2025-11-18:/home/node/.n8n/workflowss
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -58,6 +64,14 @@ services:
     restart: unless-stopped
     expose:
       - "5000"
+    volumes:
+      - ./fit-generator:/app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: aicoach_db
+      DB_USER: aicoach_user
+      DB_PASSWORD: D4bosch!609
     networks:
       - ai-coach-net
     healthcheck:
@@ -95,7 +109,45 @@ services:
         certbot renew --webroot -w /var/www/certbot;
         sleep 12h;
       done"
-      
+     
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass D4bosch!609  # Use your standard password
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose:
+      - "6379"
+    networks:
+      - ai-coach-net
+  athlete-state:
+    build: ./athlete-state-service
+    container_name: ai-cycling-coach-athlete-state
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://aicoach_user:D4bosch!609@postgres:5432/aicoach_db
+      - LOG_LEVEL=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - ai-coach-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s      
 networks:
   ai-coach-net:
     driver: bridge

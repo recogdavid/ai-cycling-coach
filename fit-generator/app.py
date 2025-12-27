@@ -1,182 +1,224 @@
 from flask import Flask, request, send_file, jsonify
-from datetime import datetime, timedelta
+from datetime import datetime
 import io
 import struct
+import json
 
 app = Flask(__name__)
 
-class FitFileWriter:
-    """Simple FIT file writer for workout files"""
+def create_valid_fit_file(workout_data):
+    """
+    Create a minimal but valid FIT workout file
+    Based on FIT SDK specification
+    """
     
-    def __init__(self):
-        self.messages = []
-        
-    def create_workout_file(self, workout_data):
-        """Create a FIT workout file from workout data"""
-        
-        # FIT file header
-        header = self._create_header()
-        
-        # File ID message
-        file_id = self._create_file_id_message()
-        
-        # Workout message
-        workout_msg = self._create_workout_message(workout_data)
-        
-        # Workout step messages (intervals)
-        steps = self._create_workout_steps(workout_data['intervals'], workout_data['ftp_watts'])
-        
-        # Combine all parts
-        messages = file_id + workout_msg + b''.join(steps)
-        
-        # Calculate CRC
-        crc = self._calculate_crc(header + messages)
-        
-        # Return complete file
-        return header + messages + struct.pack('<H', crc)
+    # Get workout data
+    workout_name = workout_data.get('name', 'Workout')[:15]
+    intervals = workout_data.get('intervals', [])
+    ftp = workout_data.get('ftp_watts', 250)
     
-    def _create_header(self):
-        """Create FIT file header"""
-        protocol_version = 0x20  # 2.0
-        profile_version = 2132  # 21.32
-        data_type = b'.FIT'
-        
-        header = struct.pack(
-            '<BHIH4s',
-            14,  # header size
-            protocol_version,
-            profile_version,
-            0,  # data_size placeholder
-            data_type
-        )
-        
-        # CRC of header
-        header_crc = self._calculate_crc(header[:-2])
-        return header[:-2] + struct.pack('<H', header_crc)
+    print(f"Creating FIT for: {workout_name}, {len(intervals)} intervals")
     
-    def _create_file_id_message(self):
-        """Create file ID message"""
-        # Definition message for file_id (18 bytes total)
-        definition = struct.pack(
-            '<BBBBBBBBBBBBBBBBBB',  # 18 B's for 18 values
-            0x40,  # Definition message with local message type 0
-            0,     # Reserved
-            0,     # Architecture (little endian)
-            0,     # Global message number (file_id) low byte
-            0,     # Global message number high byte
-            4,     # Number of fields
-            3, 4, 0x86,  # Field 0: type (manufacturer)
-            4, 4, 0x86,  # Field 1: product
-            5, 4, 0x86,  # Field 2: serial number
-            1, 4, 0x86   # Field 3: time_created
-        )
-        
-        # Data message
-        timestamp = int((datetime.now() - datetime(1989, 12, 31)).total_seconds())
-        data = struct.pack(
-            '<BIIII',
-            0x00,  # Data message with local message type 0
-            4,     # type = 4 (workout)
-            0xFFFF,  # product = unknown
-            0xFFFFFFFF,  # serial = unknown
-            timestamp
-        )
-        
-        return definition + data
+    # If no intervals, create a simple one
+    if not intervals:
+        intervals = [{
+            'name': 'Steady',
+            'duration': '30 min',
+            'target_power': {'percentage_ftp': '70% FTP'}
+        }]
     
-    def _create_workout_message(self, workout_data):
-        """Create workout message"""
-        # Definition message for workout (12 bytes total)
-        definition = struct.pack(
-            '<BBBBBBBBBBBB',  # 12 B's for 12 values
-            0x41,  # Definition with local message type 1
-            0,     # Reserved
-            0,     # Architecture
-            26,    # Global message number (workout) low byte
-            0,     # Global message number high byte
-            2,     # Number of fields (2 fields)
-            8, 16, 0x07,  # Field 0: wkt_name (string, 16 bytes)
-            11, 1, 0x00   # Field 1: num_valid_steps (uint8)
-        )
-        
-        workout_name = workout_data.get('name', 'Workout')[:15].encode('utf-8').ljust(16, b'\x00')
-        num_steps = len(workout_data['intervals'])
-        
-        data = struct.pack('<B', 0x01) + workout_name + struct.pack('<B', num_steps)
-        
-        return definition + data
+    # ===== 1. CREATE MESSAGES =====
+    messages = bytearray()
     
-    def _create_workout_steps(self, intervals, ftp_watts):
-        """Create workout step messages from intervals"""
-        steps = []
+    # ----- File ID Message (Local Message Type 0) -----
+    # Definition Message
+    messages.extend([
+        0x40, 0x00, 0x00,       # Header: definition, reserved, arch (little)
+        0x00, 0x00,             # Global message number: file_id (0)
+        0x04,                   # Number of fields: 4
         
-        # Step definition message (23 bytes total)
-        step_def = struct.pack(
-            '<BBBBBBBBBBBBBBBBBBBBBBBB',  # 23 B's for 23 values
-            0x42,  # Definition with local message type 2
-            0,     # Reserved
-            0,     # Architecture
-            27,    # Global message number (workout_step) low byte
-            0,     # Global message number high byte
-            6,     # Number of fields (6 fields)
-            254, 2, 0x84,  # Field 0: message_index (uint16)
-            0, 16, 0x07,   # Field 1: wkt_step_name (string, 16 bytes)
-            1, 1, 0x00,    # Field 2: duration_type (enum)
-            2, 4, 0x86,    # Field 3: duration_value (uint32)
-            3, 1, 0x00,    # Field 4: target_type (enum)
-            4, 4, 0x86     # Field 5: target_value (uint32)
-        )
+        # Field 0: type (uint32)
+        0x03, 0x04, 0x86,
+        # Field 1: product (uint32)
+        0x04, 0x04, 0x86,
+        # Field 2: serial_number (uint32)
+        0x05, 0x04, 0x86,
+        # Field 3: time_created (uint32)
+        0x01, 0x04, 0x86
+    ])
+    
+    # Data Message
+    timestamp = int((datetime.now() - datetime(1989, 12, 31)).total_seconds())
+    messages.extend([
+        0x00,                   # Header: data, local type 0
+        0x04, 0x00, 0x00, 0x00, # type = workout (4)
+        0xFF, 0xFF, 0x00, 0x00, # product = 65535 (unknown)
+        0xFF, 0xFF, 0xFF, 0xFF, # serial = 4294967295 (unknown)
+        timestamp & 0xFF, (timestamp >> 8) & 0xFF,
+        (timestamp >> 16) & 0xFF, (timestamp >> 24) & 0xFF
+    ])
+    
+    # ----- Workout Message (Local Message Type 1) -----
+    # Definition Message
+    messages.extend([
+        0x41, 0x00, 0x00,       # Header: definition, reserved, arch
+        0x1A, 0x00,             # Global message number: workout (26)
+        0x02,                   # Number of fields: 2
         
-        steps.append(step_def)
+        # Field 0: wkt_name (string, 16 bytes)
+        0x08, 0x10, 0x07,
+        # Field 1: num_valid_steps (uint8)
+        0x0B, 0x01, 0x00
+    ])
+    
+    # Data Message
+    workout_name_bytes = workout_name.encode('utf-8')[:15].ljust(16, b'\x00')
+    messages.extend([
+        0x01,                   # Header: data, local type 1
+        *workout_name_bytes,    # wkt_name (16 bytes)
+        len(intervals) & 0xFF   # num_valid_steps
+    ])
+    
+    # ----- Workout Step Messages (Local Message Type 2) -----
+    if intervals:
+        # Definition Message (only once)
+        messages.extend([
+            0x42, 0x00, 0x00,   # Header: definition, reserved, arch
+            0x1B, 0x00,         # Global message number: workout_step (27)
+            0x06,               # Number of fields: 6
+            
+            # Field 0: message_index (uint16)
+            0xFE, 0x02, 0x84,
+            # Field 1: wkt_step_name (string, 16 bytes)
+            0x00, 0x10, 0x07,
+            # Field 2: duration_type (enum)
+            0x01, 0x01, 0x00,
+            # Field 3: duration_value (uint32)
+            0x02, 0x04, 0x86,
+            # Field 4: target_type (enum)
+            0x03, 0x01, 0x00,
+            # Field 5: target_value (uint32)
+            0x04, 0x04, 0x86
+        ])
         
+        # Data Messages (one per interval)
         for idx, interval in enumerate(intervals):
-            step_name = interval.get('type', 'interval')[:15].encode('utf-8').ljust(16, b'\x00')
-            duration = int(interval['duration'])  # seconds
+            # Get step name
+            step_name = interval.get('name', interval.get('type', f'Step {idx+1}'))
+            step_name_bytes = step_name.encode('utf-8')[:15].ljust(16, b'\x00')
             
-            # Calculate target power in watts
-            power_pct = interval.get('power_pct', 70)
-            target_power = int(ftp_watts * (power_pct / 100))
+            # Get duration in milliseconds
+            duration_str = interval.get('duration', '0')
+            if 'min' in duration_str:
+                duration_sec = int(float(duration_str.replace('min', '').strip()) * 60)
+            else:
+                duration_sec = int(duration_str)
+            duration_ms = duration_sec * 1000
             
-            # Data message
-            step_data = struct.pack(
-                '<BH',
-                0x02,  # Data message with local message type 2
-                idx
-            ) + step_name + struct.pack(
-                '<BIBI',
-                0,  # duration_type = time
-                duration * 1000,  # duration in ms
-                1,  # target_type = power
-                target_power
-            )
+            # Get target power
+            target_power = 150
+            if 'target_power' in interval and isinstance(interval['target_power'], dict):
+                power_str = interval['target_power'].get('percentage_ftp', '70% FTP')
+                try:
+                    power_pct = float(power_str.replace('% FTP', '').strip())
+                    target_power = int(ftp * (power_pct / 100))
+                except:
+                    pass
             
-            steps.append(step_data)
-        
-        return steps
+            # Build step data
+            messages.extend([
+                0x02,                       # Header: data, local type 2
+                idx & 0xFF, (idx >> 8) & 0xFF,  # message_index
+                *step_name_bytes,           # wkt_step_name (16 bytes)
+                0x00,                       # duration_type = time (0)
+                duration_ms & 0xFF, (duration_ms >> 8) & 0xFF,
+                (duration_ms >> 16) & 0xFF, (duration_ms >> 24) & 0xFF,
+                0x01,                       # target_type = power (1)
+                target_power & 0xFF, (target_power >> 8) & 0xFF,
+                (target_power >> 16) & 0xFF, (target_power >> 24) & 0xFF
+            ])
     
-    def _calculate_crc(self, data):
-        """Calculate CRC-16 for FIT files"""
-        crc_table = [
-            0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
-            0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
-        ]
+    # ===== 2. CREATE HEADER =====
+    data_size = len(messages)
+    header = bytearray([
+        0x0E,                   # Header size (14)
+        0x20,                   # Protocol version (2.0)
+        0x54, 0x08,             # Profile version (2132)
+        data_size & 0xFF, (data_size >> 8) & 0xFF,
+        (data_size >> 16) & 0xFF, (data_size >> 24) & 0xFF,
+        0x2E, 0x46, 0x49, 0x54, # ".FIT"
+        0x00, 0x00              # CRC placeholder
+    ])
+    
+    # Calculate header CRC (CRC of first 12 bytes)
+    header_crc = calculate_crc(bytes(header[:12]))
+    header[12] = header_crc & 0xFF
+    header[13] = (header_crc >> 8) & 0xFF
+    
+    # ===== 3. CALCULATE FILE CRC =====
+    file_data = bytes(header) + bytes(messages)
+    file_crc = calculate_crc(file_data)
+    
+    # ===== 4. RETURN COMPLETE FILE =====
+    return file_data + struct.pack('<H', file_crc)
+
+def calculate_crc(data):
+    """Calculate FIT CRC-16"""
+    crc_table = [
+        0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+        0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400
+    ]
+    
+    crc = 0
+    for byte in data:
+        # Process lower nibble
+        tmp = crc_table[crc & 0xF]
+        crc = (crc >> 4) & 0x0FFF
+        crc = crc ^ tmp ^ crc_table[byte & 0xF]
         
-        crc = 0
-        for byte in data:
-            tmp = crc_table[crc & 0xF]
-            crc = (crc >> 4) & 0x0FFF
-            crc = crc ^ tmp ^ crc_table[byte & 0xF]
-            
-            tmp = crc_table[crc & 0xF]
-            crc = (crc >> 4) & 0x0FFF
-            crc = crc ^ tmp ^ crc_table[(byte >> 4) & 0xF]
-        
-        return crc
+        # Process upper nibble
+        tmp = crc_table[crc & 0xF]
+        crc = (crc >> 4) & 0x0FFF
+        crc = crc ^ tmp ^ crc_table[(byte >> 4) & 0xF]
+    
+    return crc
 
 @app.route('/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
     return jsonify({"status": "healthy"}), 200
+
+@app.route('/test-simple', methods=['GET'])
+def test_simple():
+    """Test endpoint with hardcoded data"""
+    test_data = {
+        'name': 'Test Workout',
+        'ftp_watts': 250,
+        'intervals': [
+            {
+                'name': 'Warmup',
+                'duration': '10 min',
+                'target_power': {'percentage_ftp': '60% FTP'}
+            },
+            {
+                'name': 'Main',
+                'duration': '20 min',
+                'target_power': {'percentage_ftp': '85% FTP'}
+            }
+        ]
+    }
+    
+    fit_data = create_valid_fit_file(test_data)
+    print(f"Test FIT size: {len(fit_data)} bytes")
+    
+    # Debug: show first 32 bytes
+    print("First 32 bytes (hex):", fit_data[:32].hex())
+    
+    return send_file(
+        io.BytesIO(fit_data),
+        mimetype='application/octet-stream',
+        as_attachment=True,
+        download_name='test_simple.fit'
+    )
 
 @app.route('/generate-fit', methods=['POST'])
 def generate_fit():
@@ -184,22 +226,27 @@ def generate_fit():
     try:
         data = request.get_json()
         
-        # Validate required fields
-        required = ['name', 'intervals', 'ftp_watts']
-        for field in required:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
+        print("=" * 60)
+        print("GENERATING FIT FILE")
+        print(f"Name: {data.get('name')}")
+        print(f"FTP: {data.get('ftp_watts')}")
+        print(f"Intervals count: {len(data.get('intervals', []))}")
+        
+        if data.get('intervals'):
+            print("First interval:", json.dumps(data['intervals'][0], indent=2))
         
         # Generate FIT file
-        writer = FitFileWriter()
-        fit_data = writer.create_workout_file(data)
+        fit_data = create_valid_fit_file(data)
+        
+        print(f"FIT file size: {len(fit_data)} bytes")
+        print("First 16 bytes (hex):", fit_data[:16].hex())
+        print("=" * 60)
         
         # Create filename
         filename = data.get('filename', 'workout.fit')
         if not filename.endswith('.fit'):
             filename += '.fit'
         
-        # Return as file
         return send_file(
             io.BytesIO(fit_data),
             mimetype='application/octet-stream',
@@ -208,6 +255,9 @@ def generate_fit():
         )
         
     except Exception as e:
+        print(f"ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
