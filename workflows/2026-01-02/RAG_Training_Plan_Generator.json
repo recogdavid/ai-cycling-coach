@@ -1,0 +1,1203 @@
+{
+  "updatedAt": "2025-12-23T18:05:52.008Z",
+  "createdAt": "2025-11-01T13:17:17.047Z",
+  "id": "6tAO0JFLjVCLqyLp",
+  "name": "RAG Training Plan Generator",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-plan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        1008
+      ],
+      "id": "30822737-613b-4e97-904b-f8bfedc91a16",
+      "name": "Webhook",
+      "webhookId": "b1e3e1f8-ca2d-4f5b-8711-f21757a09274"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    id as athlete_id,\n    name,\n    email,\n    ftp_watts as ftp,\n    training_goal as goal,\n    weekly_hours_available as weekly_hours,\n    unavailable_days,\n    \n    -- Event training fields\n    training_goal_type,\n    training_phase,\n    -- 'phase_week' seems to be missing from your schema, I've commented it out.\n    -- phase_week, \n    target_event_date,\n    target_event_type,\n    \n    -- Calculate weeks to event\n    CASE\n        WHEN target_event_date IS NOT NULL\n        THEN GREATEST(0, CEIL((target_event_date - CURRENT_DATE)::numeric / 7))\n        ELSE NULL\n    END AS weeks_to_event\n    \nFROM athletes\nWHERE id = {{ $json.body.athlete_id }}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        176,
+        1008
+      ],
+      "id": "2e0304ff-51e3-4bc5-b788-b4bbec733e40",
+      "name": "Get Athlete Data",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all saved workouts from the loop that just finished\nconst savedWorkouts = $input.all().map(item => item.json);\n\n// Calculate total TSS by adding up all workout TSS values\nconst totalTSS = savedWorkouts.reduce((sum, workout) => {\n  return sum + (workout.target_tss || 0);\n}, 0);\n\n// Get basic info from first workout\nconst firstWorkout = savedWorkouts[0];\n\n// Return complete response\nreturn [{\n  json: {\n    success: true,\n    message: 'Training plan created successfully',\n    plan_id: firstWorkout.training_plan_id,\n    athlete_id: firstWorkout.athlete_id,\n    start_date: savedWorkouts[0].scheduled_date,\n    end_date: savedWorkouts[savedWorkouts.length - 1].scheduled_date,\n    workouts_created: savedWorkouts.length,\n    total_tss: totalTSS  // Now calculated from actual workouts\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        736
+      ],
+      "id": "63d8e3cf-05da-485f-982e-61d1cafa09d1",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE training_plans \nSET status = 'replaced'\nWHERE athlete_id = {{ $input.first().json.athlete_id }}\n  AND status = 'active';\n\nSELECT \n  {{ $input.first().json.athlete_id }} as athlete_id,\n  '{{ $input.first().json.name }}' as name,\n  {{ $input.first().json.ftp }} as ftp,\n  '{{ $input.first().json.goal }}' as goal,\n  {{ $input.first().json.weekly_hours }} as weekly_hours,\n  '{{ $input.first().json.unavailable_days }}'::text as unavailable_days;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        400,
+        1008
+      ],
+      "id": "1a6b30b7-09cc-4481-a134-0212fda08d90",
+      "name": "Deactivate Old Plans",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "format",
+              "value": "={{ $json.format }}"
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.3 } }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ Boolean($json.stream) ? true : false }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        1008
+      ],
+      "id": "90e8c05f-c9d9-4aa6-9f73-bdfc0256a5f5",
+      "name": "AI Plans Week Structure"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 5c: PARSE WEEK STRUCTURE\n// Extract workout assignments from AI response\n// ============================================\n\nconst aiResponse = $json.response;\n\n// Parse the JSON response\nlet weekStructure;\ntry {\n  weekStructure = JSON.parse(aiResponse);\n} catch (e) {\n  throw new Error(`Failed to parse AI response: ${e.message}`);\n}\n\n// Validate we have all 7 days\nconst requiredDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];\nconst missingDays = requiredDays.filter(day => !weekStructure[day]);\n\nif (missingDays.length > 0) {\n  throw new Error(`AI response missing days: ${missingDays.join(', ')}`);\n}\n\n// Convert to array format for easier processing\nconst workoutAssignments = requiredDays.map((day, index) => ({\n  day: day,\n  day_of_week: index + 1, // 1=Monday, 7=Sunday\n  workout_type: weekStructure[day]\n}));\n\n// Pass through strategy data + workout assignments\nreturn [{\n  json: {\n    strategy: $node[\"Get Athlete Data\"].json,\n    week_structure: weekStructure,\n    workout_assignments: workoutAssignments\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        1008
+      ],
+      "id": "00a11776-64e5-423b-8e8b-5d144b3cc01f",
+      "name": "Parse Week Structure"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1808,
+        1136
+      ],
+      "id": "fd0fa4d5-86fb-43bb-a3bf-a5f59356c99d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// NODE: Build RAG Query (DUAL VERSION - INDOOR & OUTDOOR)\n// ===========================================\n\n// This runs ONCE PER WORKOUT (in a loop)\nconst workout = $json;\n\n// Get the master athlete data from the start of the workflow\nconst athleteData = $node[\"Get Athlete Data\"].json;\n\n// Skip RAG for Rest days\nif (workout.workout_type === 'Rest') {\n  // Even for Rest days, create both variants\n  return [\n    {\n      json: {\n        ...workout,\n        rag_query: null,\n        skip_rag: true,\n        variant: 'indoor',\n        environment: 'indoor'\n      }\n    },\n    {\n      json: {\n        ...workout,\n        rag_query: null,\n        skip_rag: true,\n        variant: 'outdoor',\n        environment: 'outdoor'\n      }\n    }\n  ];\n}\n\n// Function to build environment-specific query\nfunction buildRAGQuery(workoutType, duration, targetTSS, athleteData, environment) {\n  const isIndoor = environment === 'indoor';\n  \n  // Base query\n  let ragQuery = `Find a ${workoutType} workout with a target TSS of ${targetTSS} for a ${duration}-minute session.`;\n  \n  // Athlete context\n  ragQuery += ` The workout is for an athlete with an FTP of ${athleteData.ftp} watts.`;\n  ragQuery += ` Their primary training goal is '${athleteData.goal}'.`;\n  \n  // Event context\n  if (athleteData.training_phase) {\n    ragQuery += ` The athlete is currently in the '${athleteData.training_phase}' training phase.`;\n    if (athleteData.weeks_to_event) {\n      ragQuery += ` They are ${athleteData.weeks_to_event} weeks away from their target event, a ${athleteData.target_event_type}.`;\n    }\n  }\n  \n  // ENVIRONMENT-SPECIFIC INSTRUCTIONS\n  if (isIndoor) {\n    ragQuery += `\\n\\n=== INDOOR WORKOUT DESIGN (Trainer/.zwo) ===\nDESIGN PRINCIPLES:\n1. INTERVAL DENSITY: 8-15 work intervals optimal for indoor training\n2. RECOVERY RATIO: Short (1:0.5 to 1:1) to maintain metabolic stress\n3. PRECISION: Exact power targets possible in controlled environment\n4. PATTERNS: Over-unders, pyramids, microbursts work well indoors\n\nSEARCH & ADAPT STRATEGY:\n1. Find ${workoutType} workouts in knowledge base\n2. ADAPT them by INCREASING interval count to 8-15 range\n3. SHORTEN recoveries to 1:0.5-1:1 ratio\n4. Ensure precise power targeting\n5. FINAL: Must have 8-15 work intervals`;\n  } else {\n    ragQuery += `\\n\\n=== OUTDOOR WORKOUT DESIGN (Road/.fit) ===\nDESIGN PRINCIPLES:\n1. INTERVAL COUNT: 3-6 work intervals maximum for safety/practicality\n2. RECOVERY RATIO: Longer (1:2 to 1:3) for terrain/traffic\n3. TERRAIN INTEGRATION: Match intervals to appropriate terrain\n4. SAFETY: Account for real-world conditions\n\nTERRAIN SUGGESTIONS (REQUIRED FOR OUTDOOR):\n- FLAT TERRAIN: For steady-state intervals, tempo work\n- ROLLING TERRAIN: For variable intensity, over-unders  \n- HILLY TERRAIN: For strength intervals, hill repeats\n\nSEARCH & ADAPT STRATEGY:\n1. Find ${workoutType} workouts in knowledge base  \n2. ADAPT them by REDUCING interval count to 3-6 maximum\n3. LENGTHEN recoveries to 1:2-1:3 ratio\n4. ADD terrain suggestion (flat/rolling/hilly) based on interval type\n5. FINAL: Must have 3-6 work intervals maximum AND terrain suggestion`;\n  }\n  \n  // Common requirements\n  ragQuery += `\\n\\nInclude varied work:rest ratios and intensity levels.`;\n  ragQuery += ` Use professional coaching templates as reference.`;\n  ragQuery += ` Format should include warmup, main set, and cooldown.`;\n  \n  return ragQuery;\n}\n\n// Return TWO items: indoor and outdoor versions\nreturn [\n  {\n    json: {\n      ...workout,\n      rag_query: buildRAGQuery(workout.workout_type, workout.duration_minutes, workout.target_tss, athleteData, 'indoor'),\n      skip_rag: false,\n      variant: 'indoor',\n      environment: 'indoor',\n      // Pass through all original data\n      athlete_id: workout.athlete_id,\n      training_plan_id: workout.training_plan_id,\n      scheduled_date: workout.scheduled_date,\n      workout_type: workout.workout_type,\n      duration_minutes: workout.duration_minutes,\n      target_tss: workout.target_tss\n    }\n  },\n  {\n    json: {\n      ...workout,\n      rag_query: buildRAGQuery(workout.workout_type, workout.duration_minutes, workout.target_tss, athleteData, 'outdoor'),\n      skip_rag: false,\n      variant: 'outdoor',\n      environment: 'outdoor',\n      // Pass through all original data\n      athlete_id: workout.athlete_id,\n      training_plan_id: workout.training_plan_id,\n      scheduled_date: workout.scheduled_date,\n      workout_type: workout.workout_type,\n      duration_minutes: workout.duration_minutes,\n      target_tss: workout.target_tss\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        544
+      ],
+      "id": "adbc418a-0a10-4260-aeff-79a55482ff40",
+      "name": "Build RAG query"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7b: CREATE EMBEDDING - UPDATED\n// Now processes ALL items in the input array\n// ============================================\n\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const json = item.json;\n  \n  // Skip if Rest day\n  if (json.skip_rag) {\n    results.push({\n      json: {\n        ...json,\n        embedding: null\n      }\n    });\n    continue;\n  }\n\n  const query = json.rag_query;\n\n  // Call Ollama embeddings API\n  const embedResponse = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'http://host.docker.internal:11434/api/embeddings',\n    headers: { 'Content-Type': 'application/json' },\n    body: {\n      model: 'nomic-embed-text',\n      prompt: query\n    },\n    json: true\n  });\n\n  const embedding = embedResponse.embedding;\n\n  // Validate embedding\n  if (!embedding || embedding.length !== 768) {\n    throw new Error(`Failed to generate embedding for ${json.workout_type} workout (variant: ${json.variant})`);\n  }\n\n  results.push({\n    json: {\n      ...json,\n      embedding: JSON.stringify(embedding)\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        480
+      ],
+      "id": "83ecca2e-aeab-4b26-81d2-039349c4be05",
+      "name": "Create embedding"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  content,\n  source,\n  ROUND((1 - (embedding <=> '{{ $json.embedding }}'::vector))::numeric, 3) as similarity\nFROM training_knowledge\nWHERE source LIKE '%zwift%' OR source LIKE '%zwo%'  -- ADD THIS LINE\nORDER BY embedding <=> '{{ $json.embedding }}'::vector\nLIMIT 3;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2640,
+        544
+      ],
+      "id": "c4f78438-9ee9-49b2-8f96-f68f57c9d0ef",
+      "name": "Query Vector DB",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3088,
+        480
+      ],
+      "id": "c713ed83-6388-4ba3-b62c-26294406f112",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// NODE 7f: PARSE WORKOUT RESPONSE (UPDATED FOR DEEPSEEK)\n// ============================================\n\n// Get the full DeepSeek API response\nconst deepseekResponse = $input.item.json;\n\n// Try to get workout from the loop's original item\nlet workout = null;\n\n// Method 1: Check if current item has workout data\nif ($input.item.json.day) {\n  workout = $input.item.json;\n}\n\n// Method 2: Get from Build RAG Query (first node in loop)\nif (!workout) {\n  try {\n    const ragQuery = $('Build RAG query');\n    if (ragQuery && ragQuery.first()) {\n      const ragData = ragQuery.first().json;\n      if (ragData.day) {\n        workout = ragData;\n      }\n    }\n  } catch (e) {\n    console.log('Could not access Build RAG query:', e.message);\n  }\n}\n\n// Method 3: Get from the loop input\nif (!workout) {\n  const loopInput = $input.first();\n  if (loopInput && loopInput.json.day) {\n    workout = loopInput.json;\n  }\n}\n\nif (!workout) {\n  throw new Error('Cannot find workout data.');\n}\n\n// Handle Rest days\nif (!deepseekResponse || workout.workout_type === 'Rest') {\n  return [{\n    json: {\n      day: workout.day,\n      scheduled_date: workout.scheduled_date,\n      workout_type: 'Rest',\n      duration_minutes: 0,\n      target_tss: 0,\n      description: 'Rest day',\n      intervals: [],\n      athlete_id: workout.athlete_id\n    }\n  }];\n}\n\n// Parse DeepSeek response - EXTRACT THE WORKOUT FROM choices[0].message.content\nlet parsedWorkout;\n\ntry {\n  // DeepSeek returns the workout JSON inside choices[0].message.content\n  const content = deepseekResponse.choices[0].message.content;\n  console.log(\"DeepSeek content:\", content.substring(0, 200) + \"...\");\n  \n  parsedWorkout = JSON.parse(content);\n  \n  // Log what we got\n  console.log(\"Parsed workout keys:\", Object.keys(parsedWorkout));\n  console.log(\"Workout name:\", parsedWorkout.workout_name);\n  console.log(\"Interval count:\", parsedWorkout.intervals?.length || 0);\n  \n} catch (e) {\n  console.error(\"Failed to parse DeepSeek response:\", e.message);\n  console.error(\"Response was:\", JSON.stringify(deepseekResponse, null, 2));\n  \n  // Return error\n  return [{\n    json: {\n      day: workout.day,\n      scheduled_date: workout.scheduled_date,\n      workout_type: workout.workout_type,\n      error: `Failed to parse AI response: ${e.message}`,\n      raw_response: deepseekResponse.choices?.[0]?.message?.content || \"No content\",\n      athlete_id: workout.athlete_id\n    }\n  }];\n}\n\n// Return complete workout with ALL data from parsedWorkout\nreturn [{\n  json: {\n    day: workout.day,\n    scheduled_date: workout.scheduled_date,\n    workout_type: workout.workout_type,\n    duration_minutes: workout.duration_minutes || parsedWorkout.total_duration_minutes,\n    target_tss: workout.target_tss,\n    athlete_id: workout.athlete_id,\n    \n    // Get ALL data from the parsed workout\n    workout_name: parsedWorkout.workout_name,\n    total_duration_minutes: parsedWorkout.total_duration_minutes,\n    warmup: parsedWorkout.warmup,\n    intervals: parsedWorkout.intervals || [],\n    cooldown: parsedWorkout.cooldown,\n    notes: parsedWorkout.notes,\n    description: parsedWorkout.description || `${parsedWorkout.workout_name} - ${parsedWorkout.total_duration_minutes} minutes`,\n    \n    // Add metadata\n    generated_by: \"deepseek\",\n    model: deepseekResponse.model,\n    token_usage: deepseekResponse.usage\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4256,
+        1184
+      ],
+      "id": "6918cdd2-3ffb-47c3-bf58-2ad1c3d4e1fb",
+      "name": "Parse Workout Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "91f39b65-6a64-4374-ba60-741ae126044b",
+              "leftValue": "={{ $json.skip_rag }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "b2d7fb75-52ec-4816-bc27-93d1deb5c13b",
+              "leftValue": "={{ $json.embedding }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2416,
+        480
+      ],
+      "id": "7b1f1fe3-c591-4e01-ab7e-52a5ec5e1544",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a7b072fb-43d3-423f-8f3a-112d975ee9cb",
+              "leftValue": "={{ $json.skip_generation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3760,
+        480
+      ],
+      "id": "85cba137-b0c3-4557-9225-2093c634c6aa",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// COMBINE WORKOUT WITH RAG RESULTS (WITH DEBUG)\n// ============================================\n\n// Get all RAG results from Query Vector DB\nconst ragResults = $input.all().map(item => item.json);\n\n// === DEBUG LOGGING ===\nconsole.log(\"=== RAG RETRIEVAL DEBUG ===\");\nconsole.log(\"Number of RAG results found:\", ragResults.length);\n\nif (ragResults.length === 0) {\n  console.log(\"\u274c NO RAG RESULTS FOUND!\");\n} else {\n  ragResults.forEach((result, i) => {\n    console.log(`\\n--- Result ${i+1} ---`);\n    console.log(\"Source:\", result.source || \"unknown\");\n    console.log(\"Similarity:\", result.similarity || \"N/A\");\n    \n    // Check if it's a zwift workout\n    const isZwift = result.source && (\n      result.source.includes('zwift') || \n      result.source.includes('zwo')\n    );\n    console.log(\"Is zwift workout?\", isZwift ? \"\u2705 YES\" : \"\u274c NO\");\n    \n    // Show preview\n    if (result.content) {\n      console.log(\"Preview (150 chars):\", result.content.substring(0, 150) + \"...\");\n    }\n  });\n}\n\n// Get the workout data from Create Embedding node\nconst workout = $node[\"Create embedding\"].json;\nconsole.log(\"\\nWorkout being generated:\", workout.workout_type);\n\n// Return combined data\nreturn [{\n  json: {\n    workout: workout,\n    rag_results: ragResults\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        544
+      ],
+      "id": "191e93a2-e522-4850-bedf-118b7b2e0fee",
+      "name": "Combine Workout with RAG"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create a lookup object for workouts by day\nconst workouts = $json.workouts;\n\nconst workoutLookup = {};\nworkouts.forEach(workout => {\n  workoutLookup[workout.day] = workout;\n});\n\n// Store in execution context as JSON STRING\n$execution.customData.set('workoutLookup', JSON.stringify(workoutLookup));\n\nconsole.log('Stored workout lookup with keys:', Object.keys(workoutLookup));\n\n// Return workouts as separate items for the loop\nreturn workouts.map(workout => ({ json: workout }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        1008
+      ],
+      "id": "304830ab-2beb-47ce-8c66-4be6b869f9ea",
+      "name": "Prepare Workout Lookup"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// NODE: CALCULATE TSS PER WORKOUT\n// Processes workout assignments and calculates metrics\n// ===========================================\n\n// --- Input Processing ---\n// Based on the error message, n8n is passing the data object directly\n// as $json, not nested within an array or a top-level .json property.\n// The structure received is like: { \"strategy\": {...}, \"workout_assignments\": [...] }\n\nlet inputData;\n\n// --- Primary Check: Is $json the data object itself? ---\nif ($json && typeof $json === 'object' && !Array.isArray($json) && $json.strategy && $json.workout_assignments) {\n    inputData = $json; // $json IS the data object we need\n}\n// --- Secondary Check: Is $json an array containing the data object? ---\nelse if ($json && Array.isArray($json) && $json.length > 0 && $json[0] && $json[0].json) {\n    inputData = $json[0].json; // $json is an array like [ { json: { ... } } ]\n}\n// --- Fallback Error Handling ---\nelse {\n    throw new Error(`Invalid input structure received. Expected object with 'strategy'/'workout_assignments' or array containing a 'json' object with these properties, but received: ${JSON.stringify($json)}`);\n}\n\n// --- Final Validation of Parsed Data ---\nif (!inputData || typeof inputData.strategy !== 'object' || inputData.strategy === null || !Array.isArray(inputData.workout_assignments)) {\n    throw new Error(`Input data is missing required properties ('strategy' object or 'workout_assignments' array) after parsing. Parsed data: ${JSON.stringify(inputData)}`);\n}\n\n// --- Assign Variables ---\nconst data = inputData;\nconst strategy = data.strategy;\nconst workoutAssignments = data.workout_assignments; // This should now be the array ['Monday', 'Tuesday', ...]\n\n\n// ===========================================\n// TSS CALCULATION RULES & HELPER FUNCTIONS\n// Defined here to ensure they are available in the scope\n// ===========================================\n\nconst TSS_RULES = {\n  'Threshold': { default_duration: 60, tss_per_hour: 100, intensity_factor: 1.00, power_pct: 98, cadence: 95, indoor: true },\n  'Sweet Spot': { default_duration: 60, tss_per_hour: 80, intensity_factor: 0.90, power_pct: 90, cadence: 95, indoor: true },\n  'VO2Max': { default_duration: 45, tss_per_hour: 120, intensity_factor: 1.10, power_pct: 110, cadence: 100, indoor: true },\n  'Tempo': { default_duration: 60, tss_per_hour: 67, intensity_factor: 0.82, power_pct: 82, cadence: 92, indoor: true },\n  'Endurance': { default_duration: 120, tss_per_hour: 50, intensity_factor: 0.70, power_pct: 70, cadence: 90, indoor: false },\n  'Recovery': { default_duration: 45, tss_per_hour: 30, intensity_factor: 0.55, power_pct: 55, cadence: 85, indoor: true },\n  'Rest': { default_duration: 0, tss_per_hour: 0, intensity_factor: 0, power_pct: 0, cadence: 0, indoor: true },\n  'Race Simulation': { default_duration: 60, tss_per_hour: 110, intensity_factor: 1.05, power_pct: 102, cadence: 95, indoor: false },\n  'Opener': { default_duration: 30, tss_per_hour: 40, intensity_factor: 0.80, power_pct: 85, cadence: 95, indoor: true },\n  'Easy Spin': { default_duration: 45, tss_per_hour: 20, intensity_factor: 0.50, power_pct: 50, cadence: 85, indoor: true },\n  'Anaerobic Intervals': { default_duration: 30, tss_per_hour: 130, intensity_factor: 1.15, power_pct: 115, cadence: 105, indoor: true }\n};\n\nfunction calculateTSS(duration_minutes, intensity_factor) {\n  if (duration_minutes <= 0 || intensity_factor <= 0) return 0;\n  const duration_hours = duration_minutes / 60;\n  return Math.round(duration_hours * Math.pow(intensity_factor, 2) * 100);\n}\n\nfunction normalizeDuration(workoutType, weeklyHours) {\n  const rule = TSS_RULES[workoutType];\n  if (!rule || rule.default_duration === 0) {\n      const defaultRule = TSS_RULES['Endurance'];\n      return defaultRule ? defaultRule.default_duration : 60;\n  }\n  let duration = rule.default_duration;\n  if (workoutType === 'Endurance') {\n    if (weeklyHours <= 6) duration = 90;\n    else if (weeklyHours <= 9) duration = 120;\n    else if (weeklyHours <= 12) duration = 150;\n    else duration = 180;\n  }\n  return duration;\n}\n\n// ===========================================\n// CALCULATE EACH WORKOUT\n// Iterates through workout assignments and calculates metrics\n// ===========================================\n\nconst workouts = workoutAssignments.map((assignment, index) => {\n  // --- DETAILED DEBUGGING LOGS FOR DATE CALCULATION ---\n  console.log(`--- Processing Assignment ---`);\n  console.log(`Assignment Data: Day=${assignment.day}, Type=${assignment.workout_type}, Index=${index}`);\n\n  let workoutType = assignment.workout_type;\n  // Ensure TSS_RULES is accessible here\n  let rule = TSS_RULES[workoutType];\n  let finalWorkoutType = workoutType;\n  let defaultDuration = 60;\n\n  if (rule) {\n    defaultDuration = rule.default_duration;\n  } else {\n    console.warn(`Unknown workout type encountered: \"${workoutType}\". Using default 'Endurance'.`);\n    finalWorkoutType = 'Endurance';\n    rule = TSS_RULES[finalWorkoutType];\n    if (!rule) {\n        rule = { default_duration: 60, tss_per_hour: 50, intensity_factor: 0.70, power_pct: 70, cadence: 90, indoor: false };\n    }\n  }\n\n  const actualDuration = normalizeDuration(finalWorkoutType, strategy.weekly_hours);\n  const tss = calculateTSS(actualDuration, rule.intensity_factor);\n  const target_power = Math.round(strategy.ftp * (rule.power_pct / 100));\n\n  // --- Date Calculation ---\n  const today = new Date();\n  const dayOfWeek = today.getDay();\n  console.log(`Current date: ${today.toISOString().split('T')[0]}, Day of Week: ${dayOfWeek}`);\n\n  const daysUntilMonday = (dayOfWeek === 1) ? 0 : (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);\n  console.log(`Calculated days until next Monday: ${daysUntilMonday}`);\n\n  const nextMonday = new Date(today);\n  nextMonday.setDate(today.getDate() + daysUntilMonday);\n  nextMonday.setHours(0, 0, 0, 0);\n\n  console.log(`Calculated nextMonday base date: ${nextMonday.toISOString().split('T')[0]}`);\n\n  const scheduledDate = new Date(nextMonday);\n  // Add the index to the date of the calculated Monday\n  // index should be 0, 1, 2, ... 6 based on the workoutAssignments array position\n  scheduledDate.setDate(nextMonday.getDate() + index);\n\n  // --- LOGGING FINAL CALCULATED DATE AND INDEX VALUE ---\n  console.log(`Final calculated scheduledDate: ${scheduledDate.toISOString().split('T')[0]} (using index ${index})`);\n  console.log(`--- End Assignment ---`);\n\n  return {\n    day: assignment.day,\n    day_of_week: assignment.day_of_week,\n    scheduled_date: scheduledDate.toISOString().split('T')[0],\n\n    workout_type: finalWorkoutType,\n    duration_minutes: actualDuration,\n    target_tss: tss,\n    intensity_factor: rule.intensity_factor,\n\n    target_power_watts: target_power,\n    power_pct: rule.power_pct,\n    target_cadence: rule.cadence,\n\n    indoor: rule.indoor,\n\n    ftp: strategy.ftp,\n    goal: strategy.goal,\n    athlete_id: strategy.athlete_id\n  };\n});\n\n// ===========================================\n// VALIDATE TOTAL TSS (Optional but good practice)\n// ===========================================\n\nconst validWorkouts = workouts.filter(w => w !== null);\n\nlet totalTSS = 0;\nlet totalWeeklyTSS = 0;\nlet min_tss = 0;\nlet max_tss = 0;\nlet total_duration_minutes = 0;\nlet total_hours = 0;\n\nif (validWorkouts.length > 0) {\n    totalTSS = validWorkouts.reduce((sum, w) => sum + w.target_tss, 0);\n    const weeklyHours = typeof strategy.weekly_hours === 'number' && strategy.weekly_hours > 0 ? strategy.weekly_hours : 8;\n    totalWeeklyTSS = weeklyHours * 60;\n\n    min_tss = Math.round(totalWeeklyTSS * 0.90);\n    max_tss = Math.round(totalWeeklyTSS * 1.10);\n    \n    total_duration_minutes = validWorkouts.reduce((sum, w) => sum + w.duration_minutes, 0);\n    total_hours = (total_duration_minutes / 60).toFixed(1);\n}\n\nif (validWorkouts.length === 0) {\n    console.warn(\"No valid workouts processed. Cannot calculate TSS summary.\");\n} else if (totalWeeklyTSS > 0 && (totalTSS < min_tss || totalTSS > max_tss)) {\n    console.log(`Warning: Total TSS ${totalTSS} is outside the target range of ${min_tss}-${max_tss} for ${strategy.name} (${strategy.weekly_hours} hrs/wk planned).`);\n} else if (validWorkouts.length > 0 && totalWeeklyTSS === 0) {\n    console.log(`Info: Target weekly TSS is 0. Skipping TSS range validation for ${strategy.name}.`);\n}\n\n// ===========================================\n// OUTPUT\n// ===========================================\n\nreturn [{\n  json: {\n    strategy: strategy,\n    workouts: validWorkouts,\n    summary: {\n      total_tss: totalTSS,\n      target_tss: totalWeeklyTSS,\n      min_tss: min_tss,\n      max_tss: max_tss,\n      within_range: (validWorkouts.length > 0 && totalWeeklyTSS > 0) ? (totalTSS >= min_tss && totalTSS <= max_tss) : false,\n      total_duration_minutes: total_duration_minutes,\n      total_hours: total_hours\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        1008
+      ],
+      "id": "cd3ffa90-af68-4a25-8ce2-338466e463d0",
+      "name": "Calculate TSS per Workout"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// NODE: Aggregate Workouts (FINAL CORRECTED VERSION)\n// ===========================================\n\n// The input to this node is ALL 7 items from the loop's \"done\" branch.\n// We must use $items() to gather them all into an array.\n// Then, we map over that array to extract the .json property from each item.\nconst allWorkouts = $items().map(item => item.json);\n\n// Now, allWorkouts is a proper JavaScript array of all 7 detailed workouts.\n// The rest of the logic can proceed as planned.\n\nconst validWorkouts = allWorkouts.filter(w => w && w.athlete_id);\n\nif (validWorkouts.length === 0) {\n    throw new Error(\"No valid workouts were aggregated from the loop.\");\n}\n\n// Sort by date to ensure correct start and end dates\nvalidWorkouts.sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));\n\nconst firstWorkout = validWorkouts[0];\nconst startDate = validWorkouts[0].scheduled_date;\nconst endDate = validWorkouts[validWorkouts.length - 1].scheduled_date;\n\n// Return a SINGLE item that contains the plan and the full array of workouts for the next nodes.\nreturn [{\n  json: {\n    plan: {\n      athlete_id: firstWorkout.athlete_id,\n      start_date: startDate,\n      end_date: endDate,\n      goal: firstWorkout.goal || 'AI Generated Plan',\n      status: 'active'\n    },\n    workouts: validWorkouts, \n    athlete_id: firstWorkout.athlete_id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        1120
+      ],
+      "id": "e18b254d-0798-4e5c-b0d9-f555da56c2a7",
+      "name": "Aggregate Workouts"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "training_plans",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $json.plan.athlete_id }}",
+            "start_date": "={{ $json.plan.start_date }}",
+            "end_date": "={{ $json.plan.end_date }}",
+            "goal": "={{ $json.plan.goal }}",
+            "status": "={{ $json.plan.status }}",
+            "created_at": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "end_date",
+              "displayName": "end_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "goal",
+              "displayName": "goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2192,
+        880
+      ],
+      "id": "1c5d0b7b-b7e3-467c-823d-8616a86ba81f",
+      "name": "Save Training Plan1",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ==============================================================\n// NODE: Prepare Workouts for Saving (CORRECTED & UNIFIED)\n// ==============================================================\n\n// This gets the list of all generated workouts from the previous node.\nconst aggregateData = $items(\"Aggregate Workouts\")[0].json;\nconst workouts = aggregateData.workouts;\nconst plan_id = $json.id; // Get plan_id from the direct input node.\n\n// Map over each workout to create the final database-ready object.\nreturn workouts.map(workout => {\n  // --- START: NEW UNIFIED INTERVAL LOGIC ---\n  const combinedIntervals = [];\n\n  // 1. Add the WARMUP object if it exists\n  if (workout.warmup && typeof workout.warmup === 'object') {\n    combinedIntervals.push({\n      ...workout.warmup,\n      name: 'Warmup',        // Add a standard name for display\n      type: 'warmup'         // Add a type for front-end styling\n    });\n  }\n\n  // 2. Add the MAIN SET intervals if they exist\n  if (Array.isArray(workout.intervals)) {\n    // Add the 'type' to each interval from the main set\n    const mainSet = workout.intervals.map(interval => ({\n      ...interval,\n      name: `Interval ${interval.interval_number || ''}`.trim(),\n      type: 'interval'\n    }));\n    combinedIntervals.push(...mainSet); // Spread the main intervals into the combined array\n  }\n\n  // 3. Add the COOLDOWN object if it exists\n  if (workout.cooldown && typeof workout.cooldown === 'object') {\n    combinedIntervals.push({\n      ...workout.cooldown,\n      name: 'Cooldown',      // Add a standard name for display\n      type: 'cooldown'       // Add a type for front-end styling\n    });\n  }\n  // --- END: NEW UNIFIED INTERVAL LOGIC ---\n\n  // Safety check for the description\n  const description = (typeof workout.description === 'string' && workout.description.trim() !== '') \n                      ? workout.description \n                      : `${workout.workout_type} workout`;\n\n  // Return the final object for this workout, with the combined intervals array\n  return {\n    json: {\n      training_plan_id: plan_id,\n      athlete_id: workout.athlete_id,\n      day: workout.day,\n      scheduled_date: workout.scheduled_date,\n      workout_type: workout.workout_type,\n      duration_minutes: workout.duration_minutes,\n      target_tss: workout.target_tss,\n      description: description,\n      // Save the new, complete array to the database\n      intervals: { data: combinedIntervals }, \n      status: 'planned',\n      created_at: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        880
+      ],
+      "id": "a7d17f3c-5db8-4844-b029-3b20812db497",
+      "name": "Prepare Workouts for Saving"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2640,
+        880
+      ],
+      "id": "ccd9663d-bd6a-421d-aca2-4837f67a56da",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "planned_workouts",
+          "mode": "list",
+          "cachedResultName": "planned_workouts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $json.athlete_id }}",
+            "scheduled_date": "={{ $json.scheduled_date }}",
+            "workout_type": "={{ $json.workout_type }}",
+            "description": "={{ $json.description}}",
+            "duration_minutes": "={{ $json.duration_minutes }}",
+            "target_tss": "={{ $json.target_tss }}",
+            "intervals": "={{ { data: $json.intervals } }}",
+            "created_at": "={{ $json.created_at }}",
+            "training_plan_id": "={{ $json.training_plan_id }}",
+            "interval_count": "={{ $json.interval_count || 0 }}",
+            "status": "={{ $json.status || \"planned\" }}",
+            "environment": "={{ $json.environment || $json.variant || \"indoor\" }}",
+            "variant": "={{ $json.variant || \"indoor\" }}",
+            "terrain_suggestion": "={{ $json.terrain_suggestion || \"\" }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "training_plan_id",
+              "displayName": "training_plan_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scheduled_date",
+              "displayName": "scheduled_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workout_type",
+              "displayName": "workout_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "duration_minutes",
+              "displayName": "duration_minutes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_tss",
+              "displayName": "target_tss",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intervals",
+              "displayName": "intervals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "environment",
+              "displayName": "environment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "interval_count",
+              "displayName": "interval_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "alternatives",
+              "displayName": "alternatives",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "terrain_suggestion",
+              "displayName": "terrain_suggestion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "variant",
+              "displayName": "variant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2864,
+        928
+      ],
+      "id": "c832f584-21e4-4312-9874-9d510edc3a53",
+      "name": "Save Planned Workout",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3088,
+        736
+      ],
+      "id": "79dbec01-8250-4528-983a-39b5674f2354",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// NODE: Build Strategy Prompt (Smarter Logic)\n// ===========================================\n\nconst athleteData = $node[\"Get Athlete Data\"].json;\n\n// --- Helper function to describe the training philosophy ---\n\n// =========================================================\n// Helper function to describe the training philosophy (FIXED)\n// =========================================================\nfunction getTrainingPhilosophy(goal) {\n  // Use .trim() to remove any accidental whitespace from the database value\n  const trimmedGoal = goal ? goal.trim() : '';\n\n  switch (trimmedGoal) {\n    case 'general_fitness': // Matches DB value\n      return 'The focus is on consistency and variety. Include a mix of endurance and moderate intensity to build a solid aerobic base and maintain health.';\n    case 'event_preparation': // Matches DB value\n      return 'The training must be periodized and focused on peaking for the target event.';\n    case 'competitive_racing': // Matches DB value\n      return 'The focus is on high-intensity work to improve race-winning capabilities. Prioritize workouts like VO2Max, Threshold, and Anaerobic intervals to increase top-end power and repeatability.';\n    case 'endurance_building': // Matches DB value\n      return 'The focus is on maximizing aerobic capacity through long-duration, low-to-moderate intensity workouts. Prioritize Endurance and Tempo sessions.';\n    case 'weight_loss_health': // Assuming this is the DB value\n      return 'The focus is on maximizing calorie expenditure through consistent, moderate-intensity aerobic exercise. Prioritize a mix of Tempo and Endurance workouts, ensuring the plan is sustainable.';\n    default:\n      // Add a log to see what the unexpected value is, for debugging\n      console.log(`Unknown goal found: '${goal}'. Falling back to default.`);\n      return 'The focus is on balanced, general fitness.';\n  }\n}\n\n// --- CONSTRUCT THE STRATEGY PROMPT ---\nlet prompt = `You are an expert cycling coach designing a 7-day training plan structure for an athlete.`;\n\nprompt += `\\n\\nATHLETE PROFILE:\\n`;\nprompt += `- Primary Goal: ${athleteData.goal}\\n`;\nprompt += `- Available Hours Per Week: ${athleteData.weekly_hours}\\n`;\nprompt += `- Unavailable Days: ${athleteData.unavailable_days.join(', ') || 'None'}\\n`;\n\n// --- DETAILED TRAINING FOCUS ---\nprompt += `\\nTRAINING FOCUS FOR THIS WEEK:\\n`;\n\n// Check if the athlete is on a structured, multi-week plan with a defined phase.\n// This is the primary driver of progression.\nif (athleteData.training_phase) {\n  prompt += `The athlete is following a structured plan and is currently in the '${athleteData.training_phase}' training phase.\\n`;\n\n  // Add event context if it exists\n  if (athleteData.target_event_date) {\n    prompt += `Their target event is a ${athleteData.target_event_type}, which is ${athleteData.weeks_to_event} weeks away.\\n`;\n  }\n  \n  prompt += `\\nINSTRUCTIONS FOR THE '${athleteData.training_phase.toUpperCase()}' PHASE:\\n`;\n\n  // Provide specific instructions for each phase\n  switch (athleteData.training_phase) {\n    case 'base':\n      prompt += `- The primary goal is building aerobic endurance. Prioritize 'Endurance' and 'Tempo' workouts.\\n`;\n      prompt += `- Introduce one moderate-intensity session (like 'Threshold') to maintain fitness, but keep the overall load manageable.`;\n      break;\n    case 'build':\n      prompt += `- The primary goal is increasing goal-specific fitness. Prioritize high-intensity workouts like 'Threshold' and 'VO2Max'.\\n`;\n      prompt += `- Include one long 'Endurance' ride to maintain the aerobic base. Ensure adequate 'Recovery' between hard sessions.`;\n      break;\n    case 'peak':\n      prompt += `- The focus is on maximizing readiness with very high-intensity, short-duration efforts. Prioritize 'VO2Max' and race simulation.\\n`;\n      prompt += `- Reduce overall volume and increase recovery time to ensure the athlete is sharp, not fatigued.`;\n      break;\n    case 'taper':\n      prompt += `- The goal is to shed fatigue while maintaining top-end fitness. Drastically reduce volume.\\n`;\n      prompt += `- Prescribe short 'Recovery' spins and maybe one or two very short, high-intensity \"opener\" sessions (use 'VO2Max' type for this). The majority of the week should be 'Rest' or 'Recovery'.`;\n      break;\n    default:\n      prompt += `- Follow a balanced approach suitable for the athlete's main goal: ${getTrainingPhilosophy(athleteData.goal)}`;\n      break;\n  }\n} else {\n  // If no training phase is set, fall back to the general goal philosophy\n  prompt += `The athlete is training for their primary goal without a specific training phase.\\n`;\n  prompt += `PHILOSOPHY: ${getTrainingPhilosophy(athleteData.goal)}`;\n}\n\nprompt += `\\n\\nYOUR TASK:\\n`;\nprompt += `Based on the athlete's profile and the training philosophy, design a weekly plan structure (Monday to Sunday).`;\nprompt += ` Assign one of these workout types to each day: 'Threshold', 'VO2Max', 'Tempo', 'Endurance', 'Recovery', 'Rest'.`;\nprompt += ` You MUST assign 'Rest' to the athlete's unavailable days.`;\nprompt += ` The structure must be logical and directly support the athlete's primary goal.`;\n\nprompt += `\\n\\nOUTPUT FORMAT:\\n`;\nprompt += `Respond ONLY with a valid JSON object. Do not include any other text, explanations, or markdown formatting. Example:\\n`;\nprompt += `{\"Monday\":\"Rest\",\"Tuesday\":\"Threshold\",\"Wednesday\":\"Recovery\",\"Thursday\":\"VO2Max\",\"Friday\":\"Rest\",\"Saturday\":\"Endurance\",\"Sunday\":\"Recovery\"}`;\n\n// Return the object required for the Ollama node\nreturn [{\n  json: {\n    model: 'qwen2.5:7b',\n    prompt: prompt,\n    stream: false,\n    format: 'json',\n    options: {\n      temperature: 0.4\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        1008
+      ],
+      "id": "82d5e882-22b4-4052-a1dc-32d12031b08e",
+      "name": "Build Strategy Prompt"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ================================================================\n// YOUR WORKING CODE, MODIFIED FOR DETAILED TARGET POWER\n// ================================================================\n\n// Get the input data - it comes from Merge node\nconst data = $input.item.json;\n\n// Extract workout data (it might be in data.workout or data itself)\nconst workout = data.workout || data;\n\n// ===========================================\n// HANDLE REST DAYS - SKIP API CALL\n// ===========================================\nif (workout.workout_type === 'Rest' || workout.skip_rag) {\n  console.log(\"\ud83d\udecc REST DAY DETECTED - Skipping API call\");\n  return [{\n    json: {\n      ...data,\n      skip_generation: true,  // Tell If1 to skip HTTP Request\n      is_rest_day: true,\n      workout_type: 'Rest'\n    }\n  }];\n}\n\n// ===========================================\n// BUILD PROMPT FOR WORKOUT DAYS\n// ===========================================\nconsole.log(\"\ud83d\udeb4 WORKOUT DAY - Building DeepSeek prompt\");\n\n// Get context from RAG results if available\nlet ragContext = \"No specific training context available.\";\nif (data.rag_results && data.rag_results.length > 0) {\n  ragContext = \"TRAINING CONTEXT FROM KNOWLEDGE BASE:\\n\";\n  data.rag_results.slice(0, 2).forEach((result, idx) => {\n    ragContext += `\\nExample ${idx + 1} (${result.source}):\\n`;\n    const lines = result.content.split('\\n').slice(0, 3);\n    ragContext += lines.join('\\n') + '\\n';\n  });\n}\n\n// Get athlete data from earlier in workflow\nconst athleteData = $node[\"Get Athlete Data\"].json;\n\n// ########################################################################\n// ### CHANGE 1: THE NEW, MORE DETAILED SYSTEM PROMPT                     ###\n// ########################################################################\nconst systemPrompt = `You are an expert cycling coach. Your primary responsibility is to create safe, effective, and complete training sessions formatted as a single, valid JSON object.\n\nCRITICAL REQUIREMENTS:\n\n1.  **Full Session Structure:** The final JSON object MUST have three non-negotiable, top-level keys: \\`warmup\\`, \\`intervals\\` (for the main set), and \\`cooldown\\`.\n\n2.  **Mandatory Warmup & Cooldown:** You MUST include a \\`warmup\\` of 10-15 minutes and a \\`cooldown\\` of at least 5-10 minutes.\n\n3.  **Detailed Target Power:** For every object inside the \\`intervals\\` array, the \\`target_power\\` field MUST be a JSON object itself. This object MUST contain two keys:\n    *   \\`percentage_ftp\\`: A string representing the power relative to FTP (e.g., \"115% FTP\", \"50% FTP\").\n    *   \\`absolute_watts\\`: A string representing the calculated absolute power in watts (e.g., \"345W\", \"150W\"). You MUST calculate this based on the athlete's FTP from the user prompt.\n\n4.  **RAG Context Usage:** The user will provide 'TRAINING CONTEXT'. Use this information *only* to structure the main \\`intervals\\` array.\n\n5.  **Strict JSON Output:** Your entire response MUST be ONLY the JSON object. Do not include any introductory text, explanations, or markdown.\n\nEXAMPLE OF PERFECT OUTPUT STRUCTURE:\n{\n  \"workout_name\": \"VO2max Development 4x5\",\n  \"total_duration_minutes\": 60,\n  \"description\": \"A challenging session to boost aerobic capacity.\",\n  \"warmup\": { \"duration\": \"15 min\", \"description\": \"10 min easy spinning, then 3x30s fast pedaling openers.\" },\n  \"intervals\": [\n    {\n      \"interval_number\": 1,\n      \"duration\": \"5 min\",\n      \"target_power\": { \"percentage_ftp\": \"115% FTP\", \"absolute_watts\": \"345W\" },\n      \"cadence\": \"100-105 rpm\",\n      \"description\": \"First main effort.\"\n    },\n    {\n      \"interval_number\": 2,\n      \"duration\": \"5 min\",\n      \"target_power\": { \"percentage_ftp\": \"50% FTP\", \"absolute_watts\": \"150W\" },\n      \"cadence\": \"85-95 rpm\",\n      \"description\": \"Active recovery.\"\n    }\n  ],\n  \"cooldown\": { \"duration\": \"10 min\", \"description\": \"Very easy spinning to cool down.\" },\n  \"notes\": \"Ensure you are well-rested before attempting this workout.\"\n}`;\n\n// ########################################################################\n// ### CHANGE 2: THE SIMPLIFIED AND ALIGNED USER PROMPT                 ###\n// ########################################################################\nconst userPrompt = `\nWORKOUT REQUEST:\n- Type: ${workout.workout_type}\n- Duration: ${workout.duration_minutes} minutes\n- Target TSS: ${workout.target_tss}\n- Athlete FTP: ${athleteData.ftp}W\n- Athlete Goal: ${athleteData.goal}\n\n${ragContext}\n\nGenerate a detailed, professional cycling workout following all CRITICAL REQUIREMENTS and the exact JSON structure defined in the system prompt.`;\n\n// Return the prompt data WITH skip_generation: false\nreturn [{\n  json: {\n    messages: [\n      { role: \"system\", content: systemPrompt },\n      { role: \"user\", content: userPrompt }\n    ],\n    raw_prompt: userPrompt,\n    skip_generation: false,  // CRITICAL: Tell If1 to use HTTP Request\n    workout_data: workout,   // Pass through for reference\n    athlete_ftp: athleteData.ftp\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        480
+      ],
+      "id": "a679e7fa-b3e7-4332-ae77-6c051b7a5e93",
+      "name": "Build DeepSeek Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "deepSeekApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.api_body_string}}",
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3968,
+        384
+      ],
+      "id": "9ed88310-937c-48c0-b852-bd52149e5073",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "deepSeekApi": {
+          "id": "9WPdHt4Mx4pdE2zb",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store DeepSeek Workout (Fixed)\nconst input = $input.item.json;\n\n// DEBUG\nconsole.log(\"=== STORE DEEPSEEK WORKOUT INPUT ===\");\nconsole.log(\"skip_generation:\", input.skip_generation);\nconsole.log(\"has messages?\", !!input.messages);\n\n// For Rest days, just pass through\nif (input.skip_generation === true) {\n  console.log(\"\ud83d\udecc REST DAY - Passing through without API request\");\n  return [{\n    json: {\n      ...input,\n      // Ensure skip_generation is explicitly true\n      skip_generation: true,\n      is_rest_day: true\n    }\n  }];\n}\n\n// For workout days, build the API request\nconsole.log(\"\ud83d\udeb4 WORKOUT DAY - Building API request\");\nconst apiRequest = {\n  model: \"deepseek-chat\",\n  messages: input.messages,\n  temperature: 0.7,\n  max_tokens: 4000,\n  response_format: { type: \"json_object\" },\n  stream: false\n};\n\nconst apiBodyString = JSON.stringify(apiRequest);\n\nreturn [{\n  json: {\n    api_body_string: apiBodyString,\n    original_data: input,\n    skip_generation: false  // Explicitly set\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3552,
+        480
+      ],
+      "id": "31bad592-39c8-4141-b1ba-52e72655969d",
+      "name": "store ds workout"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===========================================\n// NODE: Validate Interval Count\n// Position: Between \"Parse workout response\" and \"Save workout to DB\"\n// ===========================================\n\nconst input = $input.first().json;\n\n// Extract data from the parsed response\nconst workoutData = input.workout_data || input;\nconst variant = input.variant || 'indoor';\n\n// Debug: Log what we received\nconsole.log('Validation input:', {\n  hasWorkoutData: !!workoutData,\n  variant: variant,\n  keys: Object.keys(workoutData || {})\n});\n\n// Helper to count work intervals\nfunction countWorkIntervals(intervals) {\n  if (!Array.isArray(intervals)) {\n    console.log('Intervals is not an array:', intervals);\n    return 0;\n  }\n  \n  const workIntervals = intervals.filter(item => {\n    if (!item) return false;\n    \n    const type = String(item.type || '').toLowerCase();\n    const desc = String(item.description || '').toLowerCase();\n    const name = String(item.name || '').toLowerCase();\n    \n    // Check for work indicators\n    const isWork = \n      type === 'work' ||\n      type === 'interval' ||\n      desc.includes('@') || // Power target like \"110% FTP\"\n      desc.includes('% ftp') ||\n      desc.includes('watts') ||\n      (item.power_target && !type.includes('warmup') && !type.includes('cooldown') && !type.includes('recovery'));\n    \n    // Debug individual items\n    if (isWork) {\n      console.log('Found work interval:', { type, desc, name });\n    }\n    \n    return isWork;\n  });\n  \n  console.log(`Found ${workIntervals.length} work intervals out of ${intervals.length} total`);\n  return workIntervals.length;\n}\n\ntry {\n  let intervalCount = 0;\n  let validationPassed = true;\n  let validationMessage = '';\n  let terrainSuggestion = '';  // NEW: For outdoor workouts\n  \n  // Get intervals from workout data\n  if (workoutData.intervals && Array.isArray(workoutData.intervals)) {\n    intervalCount = countWorkIntervals(workoutData.intervals);\n  } else if (workoutData.main_set) {\n    intervalCount = countWorkIntervals(workoutData.main_set);\n  } else {\n    // Try to extract from description or structure\n    console.log('No intervals array found, checking workoutData:', workoutData);\n    intervalCount = workoutData.interval_count || 0;\n  }\n  \n  // === TERRAIN EXTRACTION (FOR OUTDOOR WORKOUTS) ===\n  if (variant === 'outdoor') {\n    // Try to extract terrain from various places\n    terrainSuggestion = \n      workoutData.terrain_suggestion ||\n      workoutData.terrain ||\n      workoutData.terrain_type ||\n      (workoutData.notes && workoutData.notes.match(/terrain.*?(flat|rolling|hilly|mixed)/i)?.[1]) ||\n      (workoutData.description && workoutData.description.match(/terrain.*?(flat|rolling|hilly|mixed)/i)?.[1]) ||\n      'mixed'; // default\n    \n    // Normalize\n    terrainSuggestion = terrainSuggestion.toLowerCase();\n    if (terrainSuggestion.includes('flat')) terrainSuggestion = 'flat';\n    else if (terrainSuggestion.includes('roll')) terrainSuggestion = 'rolling';\n    else if (terrainSuggestion.includes('hill')) terrainSuggestion = 'hilly';\n    else terrainSuggestion = 'mixed';\n    \n    console.log('Terrain suggestion:', terrainSuggestion);\n  }\n  \n  // Apply validation rules\n  if (variant === 'indoor') {\n    if (intervalCount >= 8 && intervalCount <= 15) {\n      validationMessage = `\u2713 Indoor: ${intervalCount} intervals (good: 8-15)`;\n    } else if (intervalCount < 8) {\n      validationPassed = false;\n      validationMessage = `\u2717 Indoor: ${intervalCount} intervals (needs 8-15)`;\n    } else {\n      validationPassed = false;\n      validationMessage = `\u2717 Indoor: ${intervalCount} intervals (too many, max 15)`;\n    }\n  } else if (variant === 'outdoor') {\n    if (intervalCount >= 1 && intervalCount <= 6) {\n      validationMessage = `\u2713 Outdoor: ${intervalCount} intervals (good: 1-6)`;\n    } else if (intervalCount > 6) {\n      validationPassed = false;\n      validationMessage = `\u2717 Outdoor: ${intervalCount} intervals (too many, max 6)`;\n    } else {\n      validationMessage = `\u26a0 Outdoor: ${intervalCount} intervals (check if intentional)`;\n    }\n  }\n  \n  console.log('Validation result:', {\n    variant,\n    intervalCount,\n    validationPassed,\n    validationMessage,\n    terrainSuggestion: variant === 'outdoor' ? terrainSuggestion : 'N/A'\n  });\n  \n  // Enhance workout data with validation info\n  const enhancedWorkoutData = {\n    ...workoutData,\n    interval_count: intervalCount,\n    validation_metadata: {\n      passed: validationPassed,\n      message: validationMessage,\n      variant: variant,\n      expected_range: variant === 'indoor' ? '8-15' : '1-6',\n      actual_count: intervalCount,\n      timestamp: new Date().toISOString()\n    }\n  };\n  \n  // Add terrain to workout data if outdoor\n  if (variant === 'outdoor' && terrainSuggestion) {\n    enhancedWorkoutData.terrain_suggestion = terrainSuggestion;\n  }\n  \n  // Return data for next node (Save to DB)\n  return [{\n    json: {\n      // Pass through all original data\n      ...input,\n      // Enhanced workout data\n      workout_data: enhancedWorkoutData,\n      // Validation info\n      validation_passed: validationPassed,\n      validation_message: validationMessage,\n      interval_count: intervalCount,\n      // Terrain for outdoor workouts\n      terrain_suggestion: variant === 'outdoor' ? terrainSuggestion : '',\n      // Ensure variant and environment are set\n      variant: variant,\n      environment: variant,\n      // DB fields (from original input or parsed)\n      athlete_id: input.athlete_id || workoutData.athlete_id,\n      training_plan_id: input.training_plan_id || workoutData.training_plan_id,\n      scheduled_date: input.scheduled_date || workoutData.scheduled_date,\n      workout_type: input.workout_type || workoutData.workout_type,\n      duration_minutes: input.duration_minutes || workoutData.duration_minutes,\n      target_tss: input.target_tss || workoutData.target_tss,\n      description: workoutData.description || workoutData.title || '',\n      intervals: workoutData.intervals || [],\n      status: 'planned'\n    }\n  }];\n  \n} catch (error) {\n  console.error('Validation error:', error);\n  \n  // Pass through with error marker\n  return [{\n    json: {\n      ...input,\n      validation_passed: false,\n      validation_message: `Validation error: ${error.message}`,\n      error: error.toString(),\n      interval_count: 0,\n      terrain_suggestion: '',\n      variant: variant || 'indoor',\n      environment: variant || 'indoor'\n    }\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4464,
+        1184
+      ],
+      "id": "4917c491-d0be-489a-8ff6-bb8973ce6f40",
+      "name": "Validate Interval Count"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Athlete Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Athlete Data": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Old Plans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Old Plans": {
+      "main": [
+        [
+          {
+            "node": "Build Strategy Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Plans Week Structure": {
+      "main": [
+        [
+          {
+            "node": "Parse Week Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Week Structure": {
+      "main": [
+        [
+          {
+            "node": "Calculate TSS per Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Workouts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build RAG query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG query": {
+      "main": [
+        [
+          {
+            "node": "Create embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create embedding": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Combine Workout with RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Build DeepSeek Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Workout Response": {
+      "main": [
+        [
+          {
+            "node": "Validate Interval Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Workout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Workout with RAG": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prepare Workout Lookup": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate TSS per Workout": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workout Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Workouts": {
+      "main": [
+        [
+          {
+            "node": "Save Training Plan1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Training Plan1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Workouts for Saving",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Workouts for Saving": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Planned Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Planned Workout": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Strategy Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Plans Week Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build DeepSeek Prompt": {
+      "main": [
+        [
+          {
+            "node": "store ds workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Parse Workout Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "store ds workout": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Interval Count": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "18",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "accept": "application/json",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?0",
+            "origin": "https://dabosch.fit",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "athlete_id=6; rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX18rfBbwvJQQ3EWKK4Hestr4XSd7R7HhLZY%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2FFNFpjV3Xzp6VD6n%2FJ11f3XrZo9ARAlbg%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX18rn%2Fbxo9k29XWQO3vQVEmBjW7JceW7azv0SIeaeiKvTXZX%2Bbsi3nUzfG1lm%2BZ%2BgV4OjJRVdDJp5w%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2FRe2VCtWk6DeNR1h3QqoDdtTdhp2nrKNk3GI1n%2FLrwIhpOuP0PNZdEH%2F%2BmMInjulMbPouVNiTbgWdTjZaj4%2FeXzzayRUk%2BXDxY1%2FuUf4zlApb4L6Z5ynFXesSRqyw2ibp0VE4HHvWaCV0DN%2FN8fo6Cp%2FzvCtscK%2FU%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX19oVNwUufjA0PDlyHFPqQoYRQttDJy1WDQdNMC%2Bsvrp1fCx%2FgZDt1gASOTG5viC60zh7v7mIreulP01iA%2BwxYeiNGZlXbw%2F9DxNbqmsDckEArjD6Za0bkZ0sf3AnkUVRcPU2AKZMKSpf%2F8zPtDEhM79WK4OL1oTpYk%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1766426960765%2C%22019b4727-d71f-7dcb-bdc8-212066e72470%22%2C1766425351966%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2BWCcALrpBJRgM%2F0C6ctFgcA%2BYesMeBH3xiZ0kvGea%2FZ%2BfpPQ5tY2G9DgLXawUUSdR%2FZvBzBBs229YWuRuArDn0Eonxjg2rluxiVs2sZc1KbT2PmrLlZ4pSFQ47xMHUW%2Fa6pk6fBK%2BCrQ%3D%3D"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "athlete_id": "6"
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/generate-plan",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "073f7eb5-1bef-481a-ad60-0d81ada5a6a5",
+  "versionCounter": 71,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:56:55.059Z",
+      "createdAt": "2025-12-01T13:56:55.059Z",
+      "role": "workflow:owner",
+      "workflowId": "6tAO0JFLjVCLqyLp",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

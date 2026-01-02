@@ -1,0 +1,246 @@
+{
+  "updatedAt": "2025-12-07T11:20:26.866Z",
+  "createdAt": "2025-10-19T18:00:41.781Z",
+  "id": "1smEFr6UaarzfZqh",
+  "name": "Strava \u00b7 API \u00b7 Connect",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/api/strava/connect",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "72ce3178-3466-432f-bfc6-fafe18abbdcc",
+      "name": "Webhook",
+      "webhookId": "3e797322-bb37-4c13-81d1-5166f0760ddb"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- START: New code to parse the athlete_id from the cookie ---\n// Get the full cookie string from the webhook headers\nconst cookieString = $json.headers.cookie;\nlet athleteId = null; // Initialize athleteId to null\n\n// Check if the cookie string exists to avoid errors\nif (cookieString) {\n  // Use a regular expression to find and extract the athlete_id value\n  const match = cookieString.match(/athlete_id=([^;]+)/);\n  \n  // If a match is found, the value is in the first captured group (match[1])\n  if (match && match[1]) {\n    athleteId = match[1];\n  }\n}\n// --- END: New code ---\n\n\n// This part of your original logic will now work correctly\nif (!athleteId) {\n  return [{ json: { hasRedirect: false, status: 'error', message: 'Missing athlete_id' } }];\n}\n\n// The rest of your code remains unchanged as it's correct\nconst clientId = $env.STRAVA_CLIENT_ID;\nif (!clientId) {\n  return [{ json: { hasRedirect: false, status: 'error', message: 'STRAVA_CLIENT_ID is not set in the container env' } }];\n}\n\nconst redirectUri = encodeURIComponent('https://dabosch.fit/webhook/api/strava/callback');\nconst scope = 'read,activity:read_all,profile:read_all';\n\nconst redirect =\n  'https://www.strava.com/oauth/authorize'\n  + '?client_id=' + clientId\n  + '&response_type=code'\n  + '&redirect_uri=' + redirectUri\n  + '&scope=' + scope\n  + '&state=' + athleteId; // This now has the correct ID from the cookie\n\nreturn [{ json: { hasRedirect: true, status: 'ok', redirect } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "df2c8f5e-1b09-4214-8a74-5c9e3dc83270",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{ $json[\"redirect\"] }}",
+        "options": {
+          "responseCode": 302
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        -48
+      ],
+      "id": "f727acd5-caa4-4aee-b4f4-8ebed91e0ecc",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "56031357-3a52-41f4-a468-bc21d62e17ab",
+              "leftValue": "={{ $json[\"hasRedirect\"] }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3631e484-d883-4c0d-aecc-3dc52866468d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json[\"body\"] }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        96
+      ],
+      "id": "2a6ddc20-aea7-4766-96c4-3ace6a7e7caa",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Take whatever is in $json and return a stringified body + content type\nreturn [{\n  json: {\n    body: JSON.stringify($json),\n    contentType: 'application/json'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        96
+      ],
+      "id": "df4c1e69-1835-4d8e-9d6d-6c140d7b8da3",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.132.171",
+            "x-forwarded-for": "92.21.132.171",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-user": "?1",
+            "sec-fetch-dest": "document",
+            "referer": "https://dabosch.fit/",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=0, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX1%2FQ4%2B3Ku35f5wdIcHUjM4fr%2FKBp0pXFpNg%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2BWpD88So09EOnjeCK12NcQZEa4Ak3TZyI%3D; athlete_id=6; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX19H%2FmHlwQvoIujPF7Y84a2RgLUchLBpTBWpCuNX7c33tpJ%2BpGK%2BLpgXtgKNdj3uUhDKb3c19D3VYA%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2B3StZGkuhHtVQINMHTtlGcnVsMP0RNfTwf4UBuoKLoHRKVvcW%2BeEp6RSfTFyhgfmxtY3%2B7shDjBJ4f2HouXpYl1ZTeNHvKsTgHysUIhgG0xewObLOKdmXQPOwL%2BY8vqUcffMmjTv2gnznwq0EEJnEHKaWk3TdeBb8%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX18yuiztlQdJK6cbTU0G6f3RaXSLonwbaEfuR3oezw0%2B0nmugcaZulwtspkY%2FBQJSBQV0IX3Ky1V2cddJVpnBu%2FFpCl1nhQBItfSOOT1CatU2u6Bmrp6AsXxfk7ZIdMFKNt4YZv%2FT9P27fP8EqlTGceVgeW3Nx0baTs%3D; rl_session=RudderEncrypt%3AU2FsdGVkX19jH%2BziYGkOolQ9NI3lB1s35th8rKGAZ859PntMAU0VLTcUTpFnz%2F73QQkL4%2FqXHpysArgiNb6H2cA6sOMuLq53XwHRi%2FInm9%2BMYfHM2sRxnfLDZc99WjQoWWqSbbIrNVVI3sZBUa7%2Frg%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1765105935173%2C%22019af842-79b8-762a-9539-a06671e0a554%22%2C1765101697458%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D"
+          },
+          "params": {},
+          "query": {
+            "action": "login"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/api/strava/connect",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "f8e1b9ed-6bad-478b-a316-fb76506609b3",
+  "versionCounter": 10,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:57:10.658Z",
+      "createdAt": "2025-12-01T13:57:10.658Z",
+      "role": "workflow:owner",
+      "workflowId": "1smEFr6UaarzfZqh",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

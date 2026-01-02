@@ -1,0 +1,643 @@
+{
+  "updatedAt": "2025-12-01T14:10:11.858Z",
+  "createdAt": "2025-10-13T07:26:37.840Z",
+  "id": "FBZ4q4aV4ws4AHHD",
+  "name": "Strava",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "strava",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "39a365cc-234f-4b98-9066-af85cf137620",
+      "name": "Webhook",
+      "webhookId": "62f9f415-497b-4609-8f56-c6e59cc46180"
+    },
+    {
+      "parameters": {
+        "jsCode": "// v1.112.6 Webhook puts JSON under $json.body\nconst src = $json.body && typeof $json.body === 'object' ? $json.body : $json;\n\nconst object_type = String(src.object_type ?? src.objectType ?? '').trim().toLowerCase();\nconst aspect_type = String(src.aspect_type ?? src.aspectType ?? '').trim().toLowerCase();\n\nreturn [\n  {\n    _raw: src, // keep for debugging\n    object_type,\n    aspect_type,\n    activityId: Number(src.object_id ?? src.objectId),\n    athleteId: Number(src.owner_id ?? src.ownerId),\n    event_time: Number(src.event_time ?? src.eventTime),\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cfb04262-272b-46f7-8d41-bc412a4c5edf",
+      "name": "Extract IDs"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "activityId": "={{$json.activityId}}"
+      },
+      "type": "n8n-nodes-base.strava",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        0
+      ],
+      "id": "e098dbee-3fbc-4488-bb03-c7156b1f1faa",
+      "name": "Get an activity",
+      "retryOnFail": true,
+      "credentials": {
+        "stravaOAuth2Api": {
+          "id": "lTxHBEajMZqGFDKe",
+          "name": "Strava account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $json;\n\nconst ids = $items('Extract IDs')[0]?.json || {};\nconst athlete_id = ids.athleteId;\n\nconst toInt = (v) => Number.isFinite(v) ? Math.round(v) : null;\nconst np_watts = toInt(a.weighted_average_watts);\nconst ride_date = a.start_date_local || a.start_date || null;\nconst distance_km = Number(((a.distance || 0) / 1000).toFixed(2));\nconst duration_min = toInt((a.moving_time || 0) / 60);\nconst avg_power_watts = toInt(a.average_watts);\nconst avg_heart_rate = toInt(a.average_heartrate);\nconst tss = Number.isFinite(a.suffer_score) ? Number(a.suffer_score.toFixed(2)) : null;\nconst strava_athlete_id = a.athlete?.id ?? null;\n\n\nreturn [{\n  json: {\n    // existing fields\n    strava_athlete_id,\n    athlete_id,\n    ride_date,\n    distance_km,\n    duration_min,\n    avg_power_watts,\n    avg_heart_rate,\n    tss,\n    source: 'strava',\n    external_id: a.id,               // keep as-is for your UNIQUE (source, external_id)\n    np_watts,    \n    // NEW fields\n    strava_activity_id: a.id,        // explicit copy of the activity id\n    strava_external_id: a.external_id ?? null\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        128
+      ],
+      "id": "bd34d89c-cf8d-4812-a51f-3c8d454c2b01",
+      "name": "Tranform rides now"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO rides (\n  athlete_id, ride_date, distance_km, duration_min,\n  avg_power_watts, avg_heart_rate, tss, source,\n  external_id,\n  strava_activity_id,\n  strava_external_id,\n  np_watts\n)\nVALUES (\n  {{$json.athlete_id}},\n  '{{$json.ride_date}}'::timestamp,\n  {{$json.distance_km}},\n  {{$json.duration_min}},\n  {{ $json.avg_power_watts ?? null }},\n  {{ $json.avg_heart_rate ?? null }},\n  {{ $json.tss ?? null }},\n  '{{$json.source}}',                                       -- 8th value = source \u2705\n  {{$json.external_id}},                                    -- 9th\n  {{ $json.strava_activity_id ?? null }},                   -- 10th\n  {{ $json.strava_external_id ? `'${$json.strava_external_id.replace(/'/g,\"''\")}'` : 'NULL' }}, -- 11th\n  {{ $json.np_watts ?? null }}                              -- 12th = np_watts \u2705\n)\nON CONFLICT (source, external_id) DO UPDATE\nSET distance_km        = EXCLUDED.distance_km,\n    duration_min       = EXCLUDED.duration_min,\n    avg_power_watts    = EXCLUDED.avg_power_watts,\n    avg_heart_rate     = EXCLUDED.avg_heart_rate,\n    tss                = EXCLUDED.tss,\n    ride_date          = EXCLUDED.ride_date,\n    np_watts           = EXCLUDED.np_watts,\n    -- fill once if missing\n    strava_activity_id = COALESCE(rides.strava_activity_id, EXCLUDED.strava_activity_id),\n    strava_external_id = COALESCE(rides.strava_external_id, EXCLUDED.strava_external_id)\nRETURNING id, {{$json.athlete_id}}::int AS athlete_id;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2288,
+        32
+      ],
+      "id": "f6c0b155-3a30-47f5-9180-0ba6085bbdc9",
+      "name": "Insert into rides",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS athlete_id_internal\nFROM athletes\nWHERE strava_athlete_id = {{ $json.strava_athlete_id }};\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1168,
+        176
+      ],
+      "id": "2013c220-1669-446a-aac8-4678acbd4e65",
+      "name": "Lookup athlete",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba94df72-488e-441b-896b-ba3607bc01c7",
+              "name": "athlete_id",
+              "value": "={{$json.athlete_id_internal}}",
+              "type": "number"
+            },
+            {
+              "id": "984a38fd-3828-49b3-bec2-ba23925300a6",
+              "name": "ride_date",
+              "value": "={{$json.ride_date}}",
+              "type": "string"
+            },
+            {
+              "id": "9891934c-2c8c-45ec-a8f7-d36d42ead33d",
+              "name": "distance_km",
+              "value": "={{ $json.distance_km }}",
+              "type": "number"
+            },
+            {
+              "id": "c2fa2cbc-fa73-4141-a4a4-eed10d5c5bd3",
+              "name": "duration_min",
+              "value": "={{$json.duration_min}}",
+              "type": "number"
+            },
+            {
+              "id": "594feb89-05a5-465b-a968-a833229cfce9",
+              "name": "avg_power_watts",
+              "value": "={{ $json.avg_power_watts}}",
+              "type": "number"
+            },
+            {
+              "id": "e12cecf9-b876-49f6-b339-d18811bae0ab",
+              "name": "avg_heart_rate",
+              "value": "={{ $json.avg_heart_rate}}",
+              "type": "number"
+            },
+            {
+              "id": "05ea2081-8ad3-4675-9081-cb0ff51dc21b",
+              "name": "tss",
+              "value": "={{ $json.tss }}",
+              "type": "number"
+            },
+            {
+              "id": "925d80d1-1843-4959-a51b-250e3bf871af",
+              "name": "source",
+              "value": "strava",
+              "type": "string"
+            },
+            {
+              "id": "d9871c28-b2b8-4f10-b049-d75feed41625",
+              "name": "external_id",
+              "value": "={{ $json.external_id }}",
+              "type": "number"
+            },
+            {
+              "id": "4963d9c1-c2fc-4529-a835-843d87668c65",
+              "name": "strava_activity_id",
+              "value": "={{$json.strava_activity_id || $json.external_id}}",
+              "type": "number"
+            },
+            {
+              "id": "d83391bb-2749-4d6e-86df-a041c6d5854e",
+              "name": "strava_external_id",
+              "value": "={{$json.strava_external_id}}",
+              "type": "string"
+            },
+            {
+              "id": "4132ac85-7323-4d45-bb2b-eadcf621dde6",
+              "name": "np_watts",
+              "value": "={{$json.np_watts }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1808,
+        48
+      ],
+      "id": "ecc90079-dd20-4e43-a1b0-d5c40ad31035",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0dea56e-6b28-4514-ab67-481fd6c58f87",
+              "leftValue": "={{ String($json.exists).trim().toLowerCase() === 'true' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        128
+      ],
+      "id": "4500f1c5-2647-45dc-bd3d-3a8da22726a0",
+      "name": "Has Activity1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        48
+      ],
+      "id": "f819a9a1-2a6c-4dd2-bb76-467e4095d12f",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e77ac53-1ce4-4b05-b7ec-e67358435403",
+              "leftValue": "={{$json.athlete_id && $json.ride_date && $json.external_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2016,
+        48
+      ],
+      "id": "8f0cb268-4c5a-4354-8ba3-88adf8fd7985",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inputs expected on $json:\n// - weighted_average_watts (from Strava 'Get an Activity')\n// - moving_time (seconds)\n// - athlete FTP: for now hardcode 247, or pull from your DB later\n\nconst a = $json;\n\n// 1) Get NP proxy from Strava; fall back to average_watts if needed\nconst np = Number.isFinite(a.weighted_average_watts)\n  ? a.weighted_average_watts\n  : (Number.isFinite(a.avg_power_watts) ? a.avg_power_watts : null);\n\n// 2) Athlete FTP (hardcoded for now; later fetch from DB)\nconst FTP = 247;\n\n// 3) Compute IF and TSS if we have enough info\nlet intensity_factor = null;\nlet tss = null;\n\nif (np && Number.isFinite(FTP) && FTP > 0 && Number.isFinite(a.duration_min)) {\n  const movingSeconds = Math.round((a.duration_min || 0) * 60);\n  intensity_factor = np / FTP;\n  // TSS formula: (sec \u00d7 NP \u00d7 IF) / (FTP \u00d7 3600) \u00d7 100\n  tss = (movingSeconds * np * intensity_factor) / (FTP * 3600) * 100;\n  // Round sensibly for storage\n  intensity_factor = Number(intensity_factor.toFixed(3));\n  tss = Number(tss.toFixed(2));\n}\n\n// 4) Pass through everything we already had + the new fields\nreturn [{\n  json: {\n    ...a,\n    np_watts: np ?? null,\n    intensity_factor,\n    tss\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        48
+      ],
+      "id": "8793b899-2983-4455-bf56-44ecb3dc6e9d",
+      "name": "Enrich metrics"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  {{$item(0, \"Edit Fields\").$json.athlete_id}} AS athlete_id,\n  s.ftp_watts,\n  s.rides_used,\n  s.source,\n  s.reason\nFROM public.suggest_ftp_p90np_lastn({{$item(0, \"Edit Fields\").$json.athlete_id}}, 10) AS s;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2496,
+        32
+      ],
+      "id": "bf51a6b7-b9f7-41e5-80b8-3f29414330ce",
+      "name": "Suggest FTP",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.athlete_ftp_suggestions\n  (athlete_id, ftp_watts, rides_used, source, reason)\nVALUES\n  (\n    {{$json.athlete_id}},\n    {{$json.ftp_watts}},\n    {{$json.rides_used}},\n    {{ $json.source ? `'${$json.source.replace(/'/g,\"''\")}'` : 'NULL' }},\n    {{ $json.reason ? `'${$json.reason.replace(/'/g,\"''\")}'` : 'NULL' }}\n  )\nRETURNING id, computed_at;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2704,
+        32
+      ],
+      "id": "7afe5762-1498-478a-946a-fba9e257f442",
+      "name": "Insert FTP suggestion",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6301619c-a450-4e76-aa94-35daa02618c4",
+              "name": "athlete_id",
+              "value": "={{ $json.athlete_id ?? $json.athlete_id_internal ?? $items('Insert into rides')[0].json.athlete_id ?? 0 }}\n",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2912,
+        32
+      ],
+      "id": "fdd6359c-5c98-4347-aa10-7437badbe41c",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  a.id                        AS athlete_id,\n  a.ftp_watts                 AS current_ftp,\n  s.ftp_watts                 AS suggested_ftp,\n  s.rides_used,\n  s.source,\n  s.reason,\n  s.computed_at,\n  CASE WHEN a.ftp_watts IS NULL\n       THEN NULL\n       ELSE (s.ftp_watts - a.ftp_watts)\n  END                        AS delta_watts,\n  CASE WHEN a.ftp_watts IS NULL OR a.ftp_watts = 0\n       THEN NULL\n       ELSE ROUND(100.0 * (s.ftp_watts - a.ftp_watts) / a.ftp_watts, 1)\n  END                        AS delta_pct,\n  (a.ftp_watts IS NULL)      AS is_first_ftp\nFROM public.athletes a\nJOIN public.athlete_ftp_suggestions_latest s\n  ON s.athlete_id = a.id\nWHERE a.id = {{$json.athlete_id}};\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3120,
+        32
+      ],
+      "id": "df63e8d7-95ba-4d9d-92f1-e0d52477160c",
+      "name": "Get FTP comparison",
+      "credentials": {
+        "postgres": {
+          "id": "3G9vGSZaDuDPmuEG",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "37fca636-b1fd-4664-97f0-ae3bde88d1d9",
+              "leftValue": "={{ $json.suggested_ftp.toString() }}",
+              "rightValue": "=",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "592e94e7-d568-4bcc-a20d-e0546225317c",
+              "leftValue": "={{ $json.rides_used }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "7ad0a034-86f7-4c35-8665-00cf67615d99",
+              "leftValue": "={{ $json.athlete_id.toString() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3328,
+        32
+      ],
+      "id": "dc6e624f-0307-4ffa-9ea2-bbdab6f2a33b",
+      "name": "Update FTP?"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IDs": {
+      "main": [
+        [
+          {
+            "node": "Get an activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get an activity": {
+      "main": [
+        [
+          {
+            "node": "Has Activity1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tranform rides now": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lookup athlete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert into rides": {
+      "main": [
+        [
+          {
+            "node": "Suggest FTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup athlete": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Activity1": {
+      "main": [
+        [
+          {
+            "node": "Tranform rides now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Enrich metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Insert into rides",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich metrics": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suggest FTP": {
+      "main": [
+        [
+          {
+            "node": "Insert FTP suggestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert FTP suggestion": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Get FTP comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get FTP comparison": {
+      "main": [
+        [
+          {
+            "node": "Update FTP?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "3a4e0cb5-ff3f-4afb-bc6c-6462ebc490be",
+  "versionCounter": 6,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:57:02.968Z",
+      "createdAt": "2025-12-01T13:57:02.968Z",
+      "role": "workflow:owner",
+      "workflowId": "FBZ4q4aV4ws4AHHD",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

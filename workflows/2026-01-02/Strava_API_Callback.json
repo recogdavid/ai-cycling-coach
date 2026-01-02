@@ -1,0 +1,367 @@
+{
+  "updatedAt": "2025-12-30T17:44:41.331Z",
+  "createdAt": "2025-11-16T11:29:27.255Z",
+  "id": "CcN3rNQb4o5PrkRM",
+  "name": "Strava API Callback",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "api/strava/callback",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -944,
+        -64
+      ],
+      "id": "a1453e14-80e5-49e9-9ba3-cf4468dbc750",
+      "name": "Webhook",
+      "webhookId": "strava-callback-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "state",
+              "value": "={{ $json.query.state }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "code",
+              "value": "={{ $json.query.code }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        -64
+      ],
+      "id": "5322ca5b-0ed5-42da-9d66-f64a3824ccdc",
+      "name": "Extract Params"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.strava.com/oauth/token",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "stravaOAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "180641"
+            },
+            {
+              "name": "client_secret",
+              "value": "aeb49644e7efe7ca404f077ca0c5c0b143f8af8d"
+            },
+            {
+              "name": "code",
+              "value": "={{ $json.code }}"
+            },
+            {
+              "name": "grant_type",
+              "value": "authorization_code"
+            },
+            {
+              "name": "redirect_uri",
+              "value": "https://dabosch.fit/webhook/api/strava/callback"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -496,
+        -64
+      ],
+      "id": "2befeb14-2bce-4f05-893f-321fa6139001",
+      "name": "Exchange Code for Tokens",
+      "credentials": {
+        "stravaOAuth2Api": {
+          "id": "RpaN4pKwSpDn5z54",
+          "name": "Strava account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Extract Params').item.json.state;\nconst tokens = $json;\n\nreturn [{\n  json: {\n    state: state,\n    is_login: state === 'login',\n    strava_athlete_id: tokens.athlete.id,\n    strava_access_token: tokens.access_token,\n    strava_refresh_token: tokens.refresh_token,\n    strava_expires_at: tokens.expires_at,\n    strava_scope: tokens.scope || null,\n    strava_athlete_name: tokens.athlete.firstname + ' ' + tokens.athlete.lastname\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        -64
+      ],
+      "id": "616f7138-524b-46bf-aa6d-27e0981e09a5",
+      "name": "Prepare Auth Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert or update based on Strava athlete ID\nINSERT INTO athletes (strava_athlete_id, name, strava_access_token, strava_refresh_token, token_expires_at, strava_scope)\nVALUES (\n  {{ $json.strava_athlete_id }},\n  '{{ $json.strava_athlete_name }}',\n  '{{ $json.strava_access_token }}',\n  '{{ $json.strava_refresh_token }}',\n  to_timestamp({{ $json.strava_expires_at }}),\n  NULLIF('{{ $json.strava_scope }}', 'null')\n)\nON CONFLICT (strava_athlete_id) \nDO UPDATE SET\n  strava_access_token = EXCLUDED.strava_access_token,\n  strava_refresh_token = EXCLUDED.strava_refresh_token,\n  token_expires_at = EXCLUDED.token_expires_at,\n  strava_scope = EXCLUDED.strava_scope\nRETURNING id, name, strava_athlete_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -48,
+        -64
+      ],
+      "id": "0226d44b-ea7b-4e10-8bde-bf474abd8db9",
+      "name": "Save Tokens",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    athlete_id: $json.id,\n    athlete_name: $json.name,\n    redirect_url: \"https://dabosch.fit/onboarding.html?athlete_id=\" + $json.id + \"&strava_connected=true\",\n    set_cookie: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -64
+      ],
+      "id": "58a28942-89fa-4f67-82b9-4e104844d0c6",
+      "name": "Link Success"
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{ $json.redirect_url }}",
+        "options": {
+          "responseCode": 302,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Set-Cookie",
+                "value": "=={{ $json.set_cookie ? 'athlete_id=' + $json.athlete_id + '; Path=/; Max-Age=2592000; Secure; SameSite=Lax' : 'athlete_id=; Path=/; Max-Age=0' }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        -64
+      ],
+      "id": "d7f1cab3-7e52-4fd4-ac2e-63e25678843b",
+      "name": "Respond with Redirect"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dabosch.fit/webhook/strava/profile-sync",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "athlete_id",
+              "value": "=  {{ $json.strava_athlete_id }}"
+            },
+            {
+              "name": "athlete_name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "strava_access_token",
+              "value": "={{ $('Prepare Auth Data').item.json.strava_access_token }}"
+            },
+            {
+              "name": "strava_refresh_token",
+              "value": "={{ $('Prepare Auth Data').item.json.strava_expires_at }}"
+            },
+            {
+              "name": "database_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "strava_expires_at",
+              "value": "={{ $('Prepare Auth Data').item.json.strava_expires_at }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        176,
+        -64
+      ],
+      "id": "fbcf30f0-e5ea-4691-91cc-84b6675b4516",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Params": {
+      "main": [
+        [
+          {
+            "node": "Exchange Code for Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exchange Code for Tokens": {
+      "main": [
+        [
+          {
+            "node": "Prepare Auth Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Auth Data": {
+      "main": [
+        [
+          {
+            "node": "Save Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Tokens": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Link Success": {
+      "main": [
+        [
+          {
+            "node": "Respond with Redirect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Link Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "sec-fetch-site": "cross-site",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-user": "?1",
+            "sec-fetch-dest": "document",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "referer": "https://dabosch.fit/onboarding",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=0, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX18rfBbwvJQQ3EWKK4Hestr4XSd7R7HhLZY%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2FFNFpjV3Xzp6VD6n%2FJ11f3XrZo9ARAlbg%3D; athlete_id=13; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX180FLHFWqBDYmYEdWKYbxGaCy%2BUSkUJ6oRO4tnWzj7roM0yePjLoXKJ%2BesLi6B%2BU9%2BjrzGcwQynvw%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2Bs7rWqtqbLOyYNmu2aebV33KSG1XTNUDXYnVKZDySqy7Z2xnZXF0SVN1CI0WtkkRxpBBjVmXKYPim0WrBRVeFTYxuRrulAtcW9%2BgFCYLsfS6acWOvjlKxviIm7%2B2m3qOxSr%2FAlQn8ePPUb1IAsAUh9DgiMIaXsuzg%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX19fbfILsxYccac4nIryfDp%2BWZXs9FwisfdZFLdSV2OsfonRckStbY0L4JenlVOIRjuKy0M8kU1xOCecHfj4kZrBBgjp%2BjExCK2Fw6zczn1SwJDpSrIyqzdLFbXqZw%2BCBfbBMF2YNA%2B9Ep%2FqCqPAOb4tvxjuWzk29yk%3D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2BVzS1kQhJ2GVRctU40xLDwDOlVSx%2BuspKr8Hx9NyIiO97mBD%2F5GiI0Yiz1kBpFfS7vdRul%2FFWds3xByxxdmEMiocBkoCsU2hSAnfF%2Bt5yTQVQCJ1VBkeEx0inHAw9S4uhLTum06wOZ8A%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5Bnull%2Cnull%2Cnull%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D"
+          },
+          "params": {},
+          "query": {
+            "state": "login",
+            "code": "8989263e566ff6c19e09c48c1995a25682cf5304",
+            "scope": "read,activity:read_all,profile:read_all"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/api/strava/callback",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "976e3b2d-6b45-474a-aac2-9e22492902bc",
+  "versionCounter": 43,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:57:06.890Z",
+      "createdAt": "2025-12-01T13:57:06.890Z",
+      "role": "workflow:owner",
+      "workflowId": "CcN3rNQb4o5PrkRM",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

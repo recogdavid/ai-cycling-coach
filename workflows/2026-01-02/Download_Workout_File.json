@@ -1,0 +1,311 @@
+{
+  "updatedAt": "2025-12-17T16:49:58.827Z",
+  "createdAt": "2025-11-15T10:52:27.871Z",
+  "id": "5ibOJli5jgbFhswN",
+  "name": "Download Workout File",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "workout-download",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "10f71960-d2fc-4517-a6c3-8ee3355aeffc",
+      "name": "Webhook",
+      "webhookId": "9f0090e9-2173-4164-82af-f6344f7e4d28"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  w.*,\n  a.ftp_watts,\n  a.name as athlete_name\nFROM planned_workouts w\nJOIN athletes a ON w.athlete_id = a.id\nWHERE w.id = {{ $json.query.workout_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ca85e9b8-0382-4c3a-82b1-ba50d5b84b53",
+      "name": "Get Workout from Database",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Disposition",
+                "value": "=attachment; filename=\"{{ $binary.data.fileName }}\""
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1056,
+        0
+      ],
+      "id": "cfa30814-8d69-417a-b3e3-7d66959b5058",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get workout data from previous node\nconst workout = $input.first().json;\n\n// Handle intervals - could be array, object, or string\nlet intervals = [];\nif (Array.isArray(workout.intervals)) {\n  intervals = workout.intervals;\n} else if (typeof workout.intervals === 'string') {\n  intervals = JSON.parse(workout.intervals);\n} else if (workout.intervals && typeof workout.intervals === 'object' && Object.keys(workout.intervals).length > 0) {\n  intervals = [workout.intervals];\n}\n\n// For rest days or workouts with no intervals, create a simple rest structure\nif (intervals.length === 0) {\n  intervals = [{\n    type: 'rest',\n    duration: 1800,\n    power_pct: 50,\n    cadence: 60\n  }];\n}\n\n// Helper: Convert power percentage to decimal for Zwift\nconst pctToDecimal = (pct) => (pct / 100).toFixed(2);\n\n// Helper: Map interval type to Zwift XML element\nconst generateIntervalXML = (interval) => {\n  const power = pctToDecimal(interval.power_pct);\n  const duration = interval.duration;\n  const cadence = interval.cadence || 90;\n  \n  switch(interval.type) {\n    case 'warmup':\n      return `    <Warmup Duration=\"${duration}\" PowerLow=\"0.50\" PowerHigh=\"${power}\" Cadence=\"${cadence}\"/>`;\n    case 'cooldown':\n      return `    <Cooldown Duration=\"${duration}\" PowerLow=\"${power}\" PowerHigh=\"0.50\" Cadence=\"${cadence}\"/>`;\n    case 'rest':\n      return `    <SteadyState Duration=\"${duration}\" Power=\"${power}\" Cadence=\"${cadence}\"/>`;\n    case 'interval':\n    case 'work':\n    case 'steady':\n      return `    <SteadyState Duration=\"${duration}\" Power=\"${power}\" Cadence=\"${cadence}\"/>`;\n    case 'recovery':\n      return `    <SteadyState Duration=\"${duration}\" Power=\"${power}\" Cadence=\"${cadence}\"/>`;\n    default:\n      return `    <SteadyState Duration=\"${duration}\" Power=\"${power}\" Cadence=\"${cadence}\"/>`;\n  }\n};\n\n// Calculate total duration and add cooldown if needed\nconst totalDuration = intervals.reduce((sum, int) => sum + int.duration, 0);\nconst targetDuration = workout.duration_minutes * 60;\n\nif (totalDuration < targetDuration && targetDuration > 0) {\n  const cooldownDuration = Math.min(300, targetDuration - totalDuration);\n  intervals.push({\n    type: 'cooldown',\n    duration: cooldownDuration,\n    power_pct: 50,\n    cadence: 85\n  });\n}\n\n// Generate interval XML\nconst intervalXML = intervals.map(generateIntervalXML).join('\\n');\n\n// Build complete .zwo file\nconst zwoContent = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<workout_file>\n  <author>Dave's AI Cycling Coach</author>\n  <name>${workout.workout_type} - ${workout.scheduled_date.split('T')[0]}</name>\n  <description>${workout.description || 'Rest day'}</description>\n  <sportType>bike</sportType>\n  <tags>\n    <tag name=\"${workout.workout_type}\"/>\n  </tags>\n  <workout>\n${intervalXML}\n  </workout>\n</workout_file>`;\n\n// Create filename\nconst date = workout.scheduled_date.split('T')[0];\nconst filename = `${date}_${workout.workout_type.replace(/\\s+/g, '_')}.zwo`;\n\nconst binaryData = Buffer.from(zwoContent);\n\nreturn {\n  json: {},\n  binary: {\n    data: {\n      data: binaryData.toString('base64'),\n      mimeType: 'application/octet-stream',\n      fileName: filename,\n      fileExtension: 'zwo'\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "5109d671-be4b-4131-8774-20deb7e30d94",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d728ba8c-5096-4267-80e5-f864789d2d5a",
+              "leftValue": "={{ $node[\"Webhook\"].json.query.format }}",
+              "rightValue": "zwo",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e054c636-4de7-4645-8562-2131c68c3928",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fit-generator:5000/generate-fit",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "filename",
+              "value": "={{ $json.filename }}"
+            },
+            {
+              "name": "ftp_watts",
+              "value": "={{ $json.ftp_watts }}"
+            },
+            {
+              "name": "intervals",
+              "value": "={{ $json.intervals }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        848,
+        176
+      ],
+      "id": "b42aa84c-d3c9-47ed-96a9-7d6ff3edb6ec",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const workout = $input.first().json;\n\n// Extract intervals from the nested structure\nlet intervals = [];\ntry {\n  // Handle the nested structure: intervals.data.data\n  if (workout.intervals && workout.intervals.data && workout.intervals.data.data) {\n    intervals = workout.intervals.data.data;\n  } else if (Array.isArray(workout.intervals)) {\n    // Old format: intervals is already an array\n    intervals = workout.intervals;\n  } else if (typeof workout.intervals === 'string') {\n    // String format: parse it\n    intervals = JSON.parse(workout.intervals);\n  }\n  \n  console.log(`Extracted ${intervals.length} intervals`);\n  if (intervals.length > 0) {\n    console.log(\"First interval:\", intervals[0]);\n  }\n} catch (e) {\n  console.log(\"Error extracting intervals:\", e.message);\n}\n\n// Build the request body\nreturn {\n  json: {\n    name: workout.workout_type,\n    filename: `${workout.scheduled_date.split('T')[0]}_${workout.workout_type.replace(/\\s+/g, '_')}.fit`,\n    ftp_watts: workout.ftp_watts,\n    intervals: intervals\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        96
+      ],
+      "id": "f2450ff8-689e-48de-bb51-00761c4387a0",
+      "name": "Prepare data"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Workout from Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Workout from Database": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare data": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "upgrade-insecure-requests": "1",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-user": "?1",
+            "sec-fetch-dest": "document",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=0, i",
+            "cookie": "athlete_id=6; rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX18rfBbwvJQQ3EWKK4Hestr4XSd7R7HhLZY%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2FFNFpjV3Xzp6VD6n%2FJ11f3XrZo9ARAlbg%3D; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX19UeLQIrQgej%2BPW8s%2FObJZWZBxlaSSAKx%2BngMoT9hQxnx37QeCRh2rwOECTro7%2FFuM%2FMiooUNgGrQ%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2BRGw98pHDaUlwEhgN%2FUrNmdn5lsBMb%2BlWneEYQSgkNwfdyD1zKPxRS44IMvStJgyeev5HVVf%2FMqp6wsM%2BYdApXf%2FZnujfRcZNl%2FVwDvOf64ikVZnhJp5VtlxsvOlUtUfGhBMmrJQAjEkPLCAWCrNM3RQoMmguZ388%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2FMlEePmHrb7jUg8mXf%2F0qpj2WKGxyH7BnDM9oxQiT1H1rootUTCsJJ86zq%2BUaGgCEIFCICfk47p0fHjfh1jV5sZYpKmeCColT3REDck5QXRwHvz%2BpvzcZKoMvNCySPMWIAYDIOsM1WcBiXfp34ggvuvr5%2B209Ggfo%3D; rl_session=RudderEncrypt%3AU2FsdGVkX1%2BhRGaZYUdcFr33XaQXdHnAPGp2P%2FdynmcWvVD3xqFIatGBu8oY9iw1CFo%2BJO13%2FR0ILPXi1TBfEMMjO1E6uzlN4hJuF5eRvJ6bxq4S1MflIr3DcqkZ%2BnQ9ksJ%2Ffsqma7bKzJP9PYNNgg%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1765982324448%2C%22019b2cbc-cc5d-7a88-a02a-d2ca861f7a59%22%2C1765982129245%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D"
+          },
+          "params": {},
+          "query": {
+            "workout_id": "170",
+            "format": "zwo"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/workout-download",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "dc61e8cd-b454-42ad-ad86-56f79c576eb0",
+  "versionCounter": 11,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:56:43.406Z",
+      "createdAt": "2025-12-01T13:56:43.406Z",
+      "role": "workflow:owner",
+      "workflowId": "5ibOJli5jgbFhswN",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}

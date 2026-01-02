@@ -1,0 +1,141 @@
+{
+  "updatedAt": "2025-12-10T19:38:01.194Z",
+  "createdAt": "2025-12-10T19:20:16.163Z",
+  "id": "LHohoPj3NBV43YJz",
+  "name": "Get Athlete Info",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "athletes/get/:id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d283a612-f8f5-41bc-a7ae-624a880fdd50",
+      "name": "Webhook",
+      "webhookId": "c29d4bfe-aad8-4fbc-b97f-447b9ac009b9"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, ftp_watts, weight_kg, training_goal, weekly_hours_available\nFROM athletes\nWHERE id = {{ $json.params.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5bda68bd-1925-4a08-a9fc-9701d59493c6",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a898fe90-41a3-4e98-abb0-348236160118",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: true,\n  id: $json.id,\n  name: $json.name,\n  ftp_watts: $json.ftp_watts,\n  weight_kg: $json.weight_kg,\n  training_goal: $json.training_goal,\n  weekly_hours_available: $json.weekly_hours_available\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d0aecbc4-8dbf-4dd1-8756-9f96de5c0218",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "3bac9890-c304-42f6-8948-9a3e28f106ad",
+  "versionCounter": 8,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-10T19:20:16.163Z",
+      "createdAt": "2025-12-10T19:20:16.163Z",
+      "role": "workflow:owner",
+      "workflowId": "LHohoPj3NBV43YJz",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null
+      }
+    }
+  ]
+}
