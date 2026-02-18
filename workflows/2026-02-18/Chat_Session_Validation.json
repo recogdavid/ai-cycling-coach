@@ -1,0 +1,239 @@
+{
+  "updatedAt": "2026-01-25T18:23:24.278Z",
+  "createdAt": "2026-01-25T14:42:10.029Z",
+  "id": "4zqH2UdzWUnaBLBU",
+  "name": "Chat Session Validation",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/auth/chat-session",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fd4d77b3-df20-4573-b3f4-e8927616f2eb",
+      "name": "Webhook",
+      "webhookId": "b4f8a3b0-4ec3-4c20-946a-764b4374fd5b"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst cookieHeader = data.headers.cookie;\nlet athleteId = null;\n\nif (cookieHeader) {\n  athleteId = parseInt(cookieHeader.split('=')[1], 10);\n}\n\nreturn {\n  json: {\n    athlete_id: athleteId,\n    cookie_found: !!athleteId,\n    raw_cookie: cookieHeader || ''\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "c7252475-58eb-4551-a9c5-71f27b932b2b",
+      "name": "Parse Cookies"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c97949be-7720-4368-9af8-51c9b80fb233",
+              "name": "headers.cookie",
+              "value": "={{ $json.headers.cookie }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0d4ea3f0-a87e-434a-95d5-c10ead41f8c4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1c380fcb-11c7-48a3-a769-25fb8804068b",
+              "leftValue": "={{ $json.cookie_found === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e5db891a-a2b1-4fe3-a128-f26af138cf2f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"authenticated\": true, \"athlete_id\": $json.athlete_id, \"athlete_name\": \"Cyclist\" } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "772eee43-474b-416e-8dd5-2343412d6bf1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"authenticated\": false, \"error\": \"Please log in\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        832,
+        96
+      ],
+      "id": "88124863-eff6-4802-9690-6a9848dc49d4",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Cookies": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Parse Cookies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "185.205.246.95",
+            "x-forwarded-for": "185.205.246.95",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "user-agent": "curl/8.5.0",
+            "accept": "*/*"
+          },
+          "params": {},
+          "query": {},
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/auth/chat-session",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "e274dde4-dc94-4671-a09c-6bd5a5eb4101",
+  "activeVersionId": "e274dde4-dc94-4671-a09c-6bd5a5eb4101",
+  "versionCounter": 12,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-25T14:42:10.029Z",
+      "createdAt": "2026-01-25T14:42:10.029Z",
+      "role": "workflow:owner",
+      "workflowId": "4zqH2UdzWUnaBLBU",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

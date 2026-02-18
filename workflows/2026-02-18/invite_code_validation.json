@@ -1,0 +1,225 @@
+{
+  "updatedAt": "2026-02-09T15:12:45.398Z",
+  "createdAt": "2026-01-28T17:48:59.821Z",
+  "id": "5DCJqezFp55BeFBB",
+  "name": "invite code validation",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/auth/validate-code",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a59b9cbf-b505-4525-a614-0b1da7b86746",
+      "name": "Webhook",
+      "webhookId": "6d911f05-5288-4854-95cf-73d19ac87e83"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Validate invite code and update athlete in a single transaction\nWITH code_validation AS (\n    SELECT \n        code,\n        expires_at,\n        used_at\n    FROM invite_codes \n    WHERE code = $1\n      AND used_at IS NULL \n      AND expires_at > NOW()\n),\nathlete_check AS (\n    SELECT \n        id,\n        name,\n        status\n    FROM athletes \n    WHERE strava_athlete_id = $2\n      AND status = 'pending_invite'\n),\n-- Update athlete if code is valid\nathlete_update AS (\n    UPDATE athletes \n    SET status = 'active'\n    WHERE id IN (SELECT id FROM athlete_check)\n      AND EXISTS (SELECT 1 FROM code_validation)\n    RETURNING id as athlete_id, name\n),\n-- Mark code as used if athlete was updated\ncode_update AS (\n    UPDATE invite_codes \n    SET used_at = NOW(),\n        strava_athlete_id = $2,\n        athlete_name = $3\n    WHERE code = $1\n      AND EXISTS (SELECT 1 FROM athlete_update)\n)\n-- Return validation result\nSELECT \n    CASE \n        WHEN NOT EXISTS (SELECT 1 FROM code_validation) THEN 'invalid_code'\n        WHEN NOT EXISTS (SELECT 1 FROM athlete_check) THEN 'athlete_not_found'\n        WHEN EXISTS (SELECT 1 FROM athlete_check WHERE status != 'pending_invite') THEN 'already_active'\n        ELSE 'success'\n    END as validation_result,\n    COALESCE((SELECT athlete_id FROM athlete_update), NULL) as athlete_id,\n    COALESCE((SELECT name FROM athlete_update), NULL) as athlete_name,\n    (SELECT expires_at FROM code_validation) as code_expires_at;",
+        "options": {
+          "queryReplacement": "={{ $json.body.invite_code }}, {{ $json.body.strava_athlete_id }}, {{ $json.body.strava_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d8c13da1-c770-4d3c-8d64-b203ec6554fe",
+      "name": "check code",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        640,
+        -16
+      ],
+      "id": "ad818f2a-c2b8-476b-8d55-d9e8648cc67e",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle case where PostgreSQL returns nothing (no matching code)\nif (!$json || Object.keys($json).length === 0) {\n  return [{\n    json: {\n      valid: false,\n      message: \"Invalid invite code\",\n      error: \"code_not_found\"\n    }\n  }];\n}\n\n// In n8n, PostgreSQL outputs items individually\n// $json contains ONE database row, not an array\n\nconsole.log('Received data:', $json);\n\n// Check if we have valid data\nif (!$json || !$json.code) {\n  return [{\n    json: {\n      valid: false,\n      message: \"Invalid invite code\",\n      error: \"no_data\"\n    }\n  }];\n}\n\n// Check if code has already been used\nif ($json.used_at) {\n  return [{\n    json: {\n      valid: false,\n      message: \"This invite code has already been used\",\n      code: $json.code,\n      error: \"code_already_used\",\n      used_at: $json.used_at,\n      used_by: $json.athlete_name || $json.strava_athlete_id || \"Unknown\"\n    }\n  }];\n}\n\n// Check if code has expired\nconst now = new Date();\nconst expiresAt = new Date($json.expires_at);\n\nif ($json.expires_at && expiresAt < now) {\n  return [{\n    json: {\n      valid: false,\n      message: \"This invite code has expired\",\n      code: $json.code,\n      error: \"code_expired\",\n      expires_at: $json.expires_at,\n      current_time: now.toISOString()\n    }\n  }];\n}\n\n// Code is valid!\nreturn [{\n  json: {\n    valid: true,\n    message: \"Code is valid\",\n    code: $json.code,\n    expires_at: $json.expires_at,\n    created_at: $json.created_at,\n    can_connect_strava: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -208
+      ],
+      "id": "c6320143-5d5a-410e-aa69-69f1e047271c",
+      "name": "validation logic"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO athletes (name, created_at) \nVALUES ('Pending Strava Connection', NOW())\nRETURNING id as athlete_id;\n\n-- Link code to athlete\nUPDATE invite_codes \nSET athlete_id = {{$json.athlete_id}}, used_at = NOW()\nWHERE code = '{{$json.code}}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        608,
+        -208
+      ],
+      "id": "80bc2659-e092-4fbb-87d3-5b59a3e4db45",
+      "name": "placeholder athlete",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\n\nswitch(result.validation_result) {\n    case 'success':\n        return [{\n            json: {\n                success: true,\n                athlete_id: result.athlete_id,\n                athlete_name: result.athlete_name,\n                message: 'Invite code validated successfully!'\n            }\n        }];\n        \n    case 'invalid_code':\n        return [{\n            json: {\n                success: false,\n                message: 'Invalid or expired invite code. Please check the code and try again.'\n            }\n        }];\n        \n    case 'athlete_not_found':\n        return [{\n            json: {\n                success: false,\n                message: 'Athlete not found. Please connect with Strava first.'\n            }\n        }];\n        \n    case 'already_active':\n        return [{\n            json: {\n                success: false,\n                message: 'Your account is already active. Please sign in.'\n            }\n        }];\n        \n    default:\n        return [{\n            json: {\n                success: false,\n                message: 'Validation error. Please try again.'\n            }\n        }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "5d3d27c3-4a6a-4bab-975c-c736b36f860f",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "check code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check code": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validation logic": {
+      "main": [
+        [
+          {
+            "node": "placeholder athlete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "placeholder athlete": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "185.205.246.95",
+            "x-forwarded-for": "185.205.246.95",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "99",
+            "user-agent": "curl/8.5.0",
+            "accept": "*/*",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "invite_code": "TEST01",
+            "strava_athlete_id": "12345",
+            "strava_name": "Test User"
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/auth/validate-code",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "4f1a6a99-5eeb-45f6-9fba-2760efbef6aa",
+  "activeVersionId": "4f1a6a99-5eeb-45f6-9fba-2760efbef6aa",
+  "versionCounter": 20,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-28T17:48:59.821Z",
+      "createdAt": "2026-01-28T17:48:59.821Z",
+      "role": "workflow:owner",
+      "workflowId": "5DCJqezFp55BeFBB",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

@@ -1,0 +1,690 @@
+{
+  "updatedAt": "2026-02-11T15:44:22.926Z",
+  "createdAt": "2025-12-24T08:17:03.462Z",
+  "id": "zpCPj6thiaTaSLiW",
+  "name": "Strava Profile Sync",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "99d4632e-1eb6-424f-8435-b78b8b564fbb",
+              "name": "body.strava_access_token",
+              "value": "={{ $json.body.strava_access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "c069e2e7-e709-43df-9a95-fb81c0129276",
+              "name": "strava_athlete_id",
+              "value": "={{ $json.body.strava_athlete_id }}",
+              "type": "number"
+            },
+            {
+              "id": "c66e6b55-faf0-4f26-bb05-2a2ef8e527db",
+              "name": "database_id",
+              "value": "={{ $json.body.database_id }}",
+              "type": "number"
+            },
+            {
+              "id": "76b9fec3-56ac-4283-ba2e-808c9c1011ad",
+              "name": "athlete_name",
+              "value": "={{ $json.body.athlete_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "ea8e5bc4-b545-4a41-bc3b-6ccee072dfaf",
+      "name": "Set Athlete ID"
+    },
+    {
+      "parameters": {
+        "url": "https://www.strava.com/api/v3/athlete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.body.strava_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        176
+      ],
+      "id": "29f3bd25-2581-46b9-8ada-ce0b6f2e6b32",
+      "name": "Get Athlete Profile"
+    },
+    {
+      "parameters": {
+        "url": "https://www.strava.com/api/v3/athlete/zones",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.body.strava_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        -208
+      ],
+      "id": "5f035d5a-3e5c-4e3c-baf8-3a4a7a186539",
+      "name": "Get Athlete Zones"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.strava.com/api/v3/athletes/{{$json.strava_athlete_id}}/stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.body.strava_access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        896,
+        -16
+      ],
+      "id": "78aa3a79-5c5f-4e59-b2e7-ef14443fa11d",
+      "name": "Get Athlete Stats"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "athletes",
+          "mode": "list",
+          "cachedResultName": "athletes"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "strava_athlete_id": "={{$json.strava_id}}",
+            "strava_ftp": "={{$json.strava_ftp }}",
+            "strava_weight_kg": "={{$json.strava_weight_kg }}",
+            "name": "= {{$json.strava_profile_data.firstname}} {{$json.strava_profile_data.lastname}}",
+            "strava_power_zones": "={{ $json.strava_power_zones }}",
+            "strava_profile_synced_at": "={{$now }}",
+            "strava_heart_rate_zones": "={{ $json.strava_heart_rate_zones }}",
+            "strava_recent_stats": "={{$json.strava_recent_stats }}",
+            "strava_ytd_stats": "={{ $json.strava_ytd_stats }}",
+            "strava_alltime_stats": "={{$json.strava_alltime_stats }}",
+            "strava_profile_data": "={{ $json.strava_profile_data }}"
+          },
+          "matchingColumns": [
+            "strava_athlete_id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "training_goal",
+              "displayName": "training_goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "weekly_hours_available",
+              "displayName": "weekly_hours_available",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "unavailable_days",
+              "displayName": "unavailable_days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strava_athlete_id",
+              "displayName": "strava_athlete_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "strava_access_token",
+              "displayName": "strava_access_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strava_refresh_token",
+              "displayName": "strava_refresh_token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "token_expires_at",
+              "displayName": "token_expires_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "training_goal_type",
+              "displayName": "training_goal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "training_phase",
+              "displayName": "training_phase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "target_event_date",
+              "displayName": "target_event_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "target_event_type",
+              "displayName": "target_event_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "weeks_to_event",
+              "displayName": "weeks_to_event",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strava_scope",
+              "displayName": "strava_scope",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "environment_preference",
+              "displayName": "environment_preference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strava_ftp",
+              "displayName": "strava_ftp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_weight_kg",
+              "displayName": "strava_weight_kg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_power_zones",
+              "displayName": "strava_power_zones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_profile_synced_at",
+              "displayName": "strava_profile_synced_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_heart_rate_zones",
+              "displayName": "strava_heart_rate_zones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_recent_stats",
+              "displayName": "strava_recent_stats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_ytd_stats",
+              "displayName": "strava_ytd_stats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_profile",
+              "displayName": "strava_profile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "strava_alltime_stats",
+              "displayName": "strava_alltime_stats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "strava_profile_data",
+              "displayName": "strava_profile_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1568,
+        -16
+      ],
+      "id": "b4c56816-90bb-4e0e-849c-eaa72747f57b",
+      "name": "Update athlete with Strava Data",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($input.first().error) {\n  return {\n    error: true,\n    message: $input.first().error.message,\n    node: $input.first().error.node,\n    timestamp: new Date().toISOString(),\n    athlete_id: $json.athlete_id || 'unknown'\n  };\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -16
+      ],
+      "id": "8e496fe2-550e-444e-8a35-f08ef4d445b1",
+      "name": "Error Handler"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/strava/profile-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -16
+      ],
+      "id": "720b445a-a274-49d1-a746-a031ed6b3cf5",
+      "name": "Webhook",
+      "webhookId": "67288cc0-f551-4af4-85a5-47add4c18078"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2016,
+        -16
+      ],
+      "id": "e787a203-067d-43eb-acf9-89adc7016990",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        -32
+      ],
+      "id": "c84867c1-9471-405e-979e-c4f6ce5419c8",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// All data is in ONE combined object\nconst combined = $json;\n\n// Wrap arrays in objects for n8n's PostgreSQL validation\nreturn {\n  strava_id: combined.id,\n  strava_ftp: combined.ftp || null,\n  strava_weight_kg: combined.weight || null,\n  strava_power_zones: { zones: combined.power?.zones || [] },  // Wrap array in object\n  strava_heart_rate_zones: { zones: combined.heart_rate?.zones || [] },  // Wrap array in object\n  strava_recent_stats: combined.recent_ride_totals || {},\n  strava_ytd_stats: combined.ytd_ride_totals || {},\n  strava_alltime_stats: combined.all_ride_totals || {},\n  strava_profile_data: {\n    id: combined.id,\n    username: combined.username,\n    firstname: combined.firstname,\n    lastname: combined.lastname,\n    city: combined.city,\n    state: combined.state,\n    country: combined.country,\n    sex: combined.sex,\n    weight: combined.weight,\n    ftp: combined.ftp,\n    profile_medium: combined.profile_medium,\n    profile: combined.profile,\n    created_at: combined.created_at,\n    updated_at: combined.updated_at,\n    clubs: combined.clubs || [],\n    bikes: combined.bikes || []\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -16
+      ],
+      "id": "cdb90266-2a7c-41af-b381-4a48a17daaec",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Set Athlete ID": {
+      "main": [
+        [
+          {
+            "node": "Get Athlete Zones",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Athlete Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Athlete Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Athlete Profile": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Get Athlete Zones": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Athlete Stats": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Update athlete with Strava Data": {
+      "main": [
+        [
+          {
+            "node": "Error Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Athlete ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Update athlete with Strava Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "172.19.0.1",
+            "x-forwarded-for": "172.19.0.1",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "256",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "content-type": "application/json",
+            "user-agent": "axios/1.12.0",
+            "accept-encoding": "gzip, compress, deflate, br"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "database_id": 13,
+            "athlete_name": "david abosch",
+            "strava_refresh_token": "224f1f628d6699d3d0740051bd5077b7f8c8e110",
+            "strava_expires_at": "2026-02-08T21:02:38.000Z",
+            "strava_access_token": "d6239c13cf55e7bb42e62cf57eed118b659fd16d",
+            "strava_athlete_id": "2615877"
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/strava/profile-sync",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "4c1e5d89-527a-4d4a-9bee-1d4438b6dc9c",
+  "activeVersionId": "4c1e5d89-527a-4d4a-9bee-1d4438b6dc9c",
+  "versionCounter": 59,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-24T08:17:03.462Z",
+      "createdAt": "2025-12-24T08:17:03.462Z",
+      "role": "workflow:owner",
+      "workflowId": "zpCPj6thiaTaSLiW",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

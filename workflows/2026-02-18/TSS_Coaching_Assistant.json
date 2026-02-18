@@ -1,0 +1,192 @@
+{
+  "updatedAt": "2026-01-04T10:24:41.310Z",
+  "createdAt": "2026-01-03T17:39:44.056Z",
+  "id": "odMBIo2mkbdwPRAt",
+  "name": "TSS Coaching Assistant",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/tss-summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e6acd66a-7153-4126-a629-dd9e515260d6",
+      "name": "Webhook",
+      "webhookId": "cf8067ef-77f1-4945-93c2-52c7f1ed9f20"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH recent_rides AS (\n  SELECT \n    DATE(ride_date) as ride_date,\n    tss,\n    COALESCE(title, 'Ride') as title,\n    duration_min,\n    -- Classify intensity\n    CASE \n      WHEN tss > 120 THEN 'very_hard'\n      WHEN tss > 80 THEN 'hard'\n      WHEN tss > 50 THEN 'moderate'\n      ELSE 'easy'\n    END as intensity,\n    -- Get previous day for consecutive detection\n    LAG(DATE(ride_date), 1) OVER (ORDER BY ride_date) as prev_ride_date,\n    LAG(\n      CASE \n        WHEN tss > 120 THEN 'very_hard'\n        WHEN tss > 80 THEN 'hard'\n        WHEN tss > 50 THEN 'moderate'\n        ELSE 'easy'\n      END, 1\n    ) OVER (ORDER BY ride_date) as prev_intensity\n  FROM rides \n  WHERE athlete_id = {{ $json.body.athlete_id }}\n    AND ride_date >= CURRENT_DATE - INTERVAL '7 days'\n    AND tss IS NOT NULL\n),\ndaily_summary AS (\n  SELECT \n    ride_date,\n    tss,\n    title,\n    duration_min,\n    intensity,\n    -- Check for consecutive hard days\n    CASE \n      WHEN intensity IN ('hard', 'very_hard') \n       AND prev_intensity IN ('hard', 'very_hard')\n       AND ride_date = prev_ride_date + INTERVAL '1 day'\n      THEN true\n      ELSE false\n    END as is_consecutive_hard_day\n  FROM recent_rides\n)\nSELECT \n  -- Weekly totals\n  COALESCE(SUM(tss), 0) as weekly_tss,\n  COUNT(*) as ride_count,\n  ROUND(COALESCE(AVG(tss), 0), 2) as avg_tss_per_ride,\n  -- Intensity counts\n  SUM(CASE WHEN intensity IN ('hard', 'very_hard') THEN 1 ELSE 0 END) as hard_days_count,\n  SUM(CASE WHEN intensity = 'very_hard' THEN 1 ELSE 0 END) as very_hard_days_count,\n  SUM(CASE WHEN is_consecutive_hard_day = true THEN 1 ELSE 0 END) as consecutive_hard_days_count,\n  -- Daily breakdown\n  COALESCE(\n    json_agg(\n      json_build_object(\n        'date', ride_date,\n        'tss', tss,\n        'ride_name', title,\n        'duration_min', duration_min,\n        'intensity', intensity,\n        'is_consecutive_hard_day', is_consecutive_hard_day\n      )\n      ORDER BY ride_date\n    ),\n    '[]'::json\n  ) as daily_breakdown\nFROM daily_summary;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "39613fdb-b27f-47b3-8b3d-338cf8fbbf6c",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\n\n// Format for chat\nconst response = {\n  weekly_summary: {\n    total_tss: summary.weekly_tss,\n    ride_count: summary.ride_count,\n    average_tss: summary.avg_tss_per_ride,\n    hard_days: summary.hard_days_count,\n    very_hard_days: summary.very_hard_days_count,\n    consecutive_hard_days: summary.consecutive_hard_days_count\n  },\n  daily_breakdown: summary.daily_breakdown,\n  fatigue_alerts: [],\n  recommendations: []\n};\n\n// Generate fatigue alerts\nif (summary.consecutive_hard_days_count > 0) {\n  response.fatigue_alerts.push(`Consecutive hard days detected: ${summary.consecutive_hard_days_count} days`);\n}\n\nif (summary.very_hard_days_count > 0) {\n  response.fatigue_alerts.push(`Very hard days: ${summary.very_hard_days_count} days (TSS > 120)`);\n}\n\n// Generate recommendations\nif (summary.consecutive_hard_days_count >= 2) {\n  response.recommendations.push(\"Consider adding a recovery day after consecutive hard days\");\n}\n\nif (summary.weekly_tss < 100 && summary.ride_count > 0) {\n  response.recommendations.push(\"Your training load is relatively low. Consider adding more volume if you're building fitness\");\n} else if (summary.weekly_tss > 500) {\n  response.recommendations.push(\"Your training load is high. Ensure adequate recovery\");\n}\n\nreturn [{ json: response }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e50e4b03-7fc6-43b5-83c0-69beaaf2de2f",
+      "name": "Format Response"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        624,
+        0
+      ],
+      "id": "af21eab3-a3f5-4766-bcf8-ab3b18b9d053",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "17",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "content-type": "application/json",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "origin": "https://dabosch.fit",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/chat.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX18rfBbwvJQQ3EWKK4Hestr4XSd7R7HhLZY%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2FFNFpjV3Xzp6VD6n%2FJ11f3XrZo9ARAlbg%3D; athlete_id=13; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2BkyVr%2FUnIWd8G4cvzwOVEny1%2B%2FasCpxqhGiM%2BBCBsiG%2Bb0g2Shl3H00oBEkLr6SGO9XRPcZkk5dg%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2B6R2Xpoh3zX19gwMcghPyFgAJWlB70U%2BVdf5ZrSJ5%2F9uXQN9havaT%2BGVs9VCftbGWKJd7DOuWYQ0g0iWZYN%2BUrwqHbAEuIh2YGFvovnW9s6pRU2E%2BjezYz9UOJZiF517bqTJ8IeUdC8aDqOS1ubu3qJJ0XYpbixFc%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2BhSc7Ap%2BvOdZy8jNK7t2m5FX44xUlrUGOmFt0XQkPtQx90jvg71lkhXoNNUCRjvEIqaUe828737SKSphsidmQMXI5%2F84zvgn0zxmNKFLStUPZk%2FqwD3XxuFw%2BctzeVLOyyUOWnFRu0%2BQiseKs85caAS48KBtO5Ah4%3D; rl_session=RudderEncrypt%3AU2FsdGVkX19gg9D%2BK0zGQoOl7MD%2BPmIOYSRZ1BmrJXoxk7qKAbjz4%2B3YMSbZ6luNo9bV%2BU6Yirc4GpcGCSajEl3nYXBVseMtD33lIy1EgSPVZzuT3OQZ5%2F%2BKJSxm9u7DhdUMl09NivP6Fi66v8hMsg%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22%24device_id%22%3A%22019aab55-13da-7585-ac16-275b532a13e6%22%2C%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1767521508273%2C%22019b887b-6887-7c42-b696-bc7524e43247%22%2C1767521347718%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "athlete_id": 13
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/tss-summary",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "655c2a73-e15d-4713-8b40-d84637dabb82",
+  "activeVersionId": "655c2a73-e15d-4713-8b40-d84637dabb82",
+  "versionCounter": 9,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-03T17:39:44.056Z",
+      "createdAt": "2026-01-03T17:39:44.056Z",
+      "role": "workflow:owner",
+      "workflowId": "odMBIo2mkbdwPRAt",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

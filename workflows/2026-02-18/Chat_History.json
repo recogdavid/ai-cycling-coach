@@ -1,0 +1,120 @@
+{
+  "updatedAt": "2026-01-26T10:19:47.648Z",
+  "createdAt": "2026-01-26T10:16:23.425Z",
+  "id": "zoNMQWk2jzXBoq8m",
+  "name": "Chat History",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/get-chat-history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9aee5c8f-006e-4a55-81d7-d78bed47a76e",
+      "name": "Webhook",
+      "webhookId": "201055b9-cc0a-4722-bca7-c70775faed5a"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, athlete_id, role, content, created_at\nFROM chat_messages \nWHERE athlete_id = {{$json.query.athlete_id}}\nORDER BY created_at ASC\nLIMIT 50",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "bbd79b8c-f682-4353-bf57-25cb388d941d",
+      "name": "get chat history",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"messages\": \"={{ $json }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        416,
+        0
+      ],
+      "id": "f2d5485c-48f5-4e90-a384-98604f8b25b0",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "get chat history",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get chat history": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "717b1f59-d40f-4845-8a43-89323549172a",
+  "activeVersionId": "717b1f59-d40f-4845-8a43-89323549172a",
+  "versionCounter": 4,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-26T10:16:23.425Z",
+      "createdAt": "2026-01-26T10:16:23.425Z",
+      "role": "workflow:owner",
+      "workflowId": "zoNMQWk2jzXBoq8m",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

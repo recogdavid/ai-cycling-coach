@@ -1,0 +1,179 @@
+{
+  "updatedAt": "2026-01-26T18:09:01.899Z",
+  "createdAt": "2025-12-10T19:20:16.163Z",
+  "id": "LHohoPj3NBV43YJz",
+  "name": "Get Athlete Info",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "athletes/get/:id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d283a612-f8f5-41bc-a7ae-624a880fdd50",
+      "name": "Webhook",
+      "webhookId": "c29d4bfe-aad8-4fbc-b97f-447b9ac009b9"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id,\n  name,\n  strava_ftp,\n  strava_weight_kg,\n  strava_power_zones,\n  strava_heart_rate_zones,\n  strava_profile_synced_at,\n  strava_profile_data,\n  training_goal,\n  weekly_hours_available,\n  target_event_type,\n  target_event_date,\n  training_phase,\n  environment_preference,\n  strava_profile\nFROM athletes\nWHERE id = {{ $json.params.id }}\n   OR strava_athlete_id = {{ $json.params.id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5bda68bd-1925-4a08-a9fc-9701d59493c6",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "a898fe90-41a3-4e98-abb0-348236160118",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const athlete = $input.first().json;\n\nreturn [{\n  json: {\n    // Original fields (for backward compatibility)\n    id: athlete.id,\n    name: athlete.name,\n    ftp_watts: athlete.strava_ftp,\n    weight_kg: athlete.strava_weight_kg,\n    training_goal: athlete.training_goal,\n    weekly_hours_available: athlete.weekly_hours_available,\n    \n    // New fields (for profile page)\n    strava_ftp: athlete.strava_ftp,\n    strava_weight_kg: athlete.strava_weight_kg,\n    strava_power_zones: athlete.strava_power_zones,\n    strava_heart_rate_zones: athlete.strava_heart_rate_zones,\n    strava_profile_synced_at: athlete.strava_profile_synced_at,\n    strava_profile_data: athlete.strava_profile_data,\n    target_event_type: athlete.target_event_type,\n    target_event_date: athlete.target_event_date,\n    training_phase: athlete.training_phase,\n    environment_preference: athlete.environment_preference\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "d0aecbc4-8dbf-4dd1-8756-9f96de5c0218",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "89.241.26.102",
+            "x-forwarded-for": "89.241.26.102",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/training-calendar.html?athlete_id=13",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en;q=0.9",
+            "priority": "u=1, i",
+            "cookie": "athlete_id=13"
+          },
+          "params": {
+            "id": "13"
+          },
+          "query": {},
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/c29d4bfe-aad8-4fbc-b97f-447b9ac009b9/athletes/get/:id",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "fc1730a6-5074-407c-8fae-4639aaca8dd3",
+  "activeVersionId": "fc1730a6-5074-407c-8fae-4639aaca8dd3",
+  "versionCounter": 15,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-10T19:20:16.163Z",
+      "createdAt": "2025-12-10T19:20:16.163Z",
+      "role": "workflow:owner",
+      "workflowId": "LHohoPj3NBV43YJz",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

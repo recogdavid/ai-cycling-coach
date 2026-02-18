@@ -1,0 +1,669 @@
+{
+  "updatedAt": "2026-02-12T18:12:03.449Z",
+  "createdAt": "2026-01-04T17:44:09.976Z",
+  "id": "2eXVwdlqszVV0FXS",
+  "name": "AI Agent Chat",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "frequencyPenalty": 0.1,
+          "maxTokens": 2000,
+          "responseFormat": "text",
+          "presencePenalty": 0.1,
+          "temperature": 0.8,
+          "topP": 0.9
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        592,
+        144
+      ],
+      "id": "43a5d793-91f5-41ca-b06f-90f23ba4e446",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "9WPdHt4Mx4pdE2zb",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        352
+      ],
+      "id": "9f57a0bb-a4f3-41e2-ae53-35297187f61b",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "dwlrOot2bQn6LFTR",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "availableInChat": true,
+        "agentName": "Dave's AI Cycle Coach",
+        "agentDescription": "The agent is designed to provide interactive cycle coaching to help amature cyclists train and compete at their best using a range of tools. ",
+        "options": {
+          "loadPreviousSession": "memory",
+          "responseMode": "streaming"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        368,
+        -80
+      ],
+      "id": "a95ed00c-acaa-440b-8717-00a477543eca",
+      "name": "When chat message received",
+      "webhookId": "3d33e2d0-15b6-4e51-b26d-c9bc45c94bd3",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are Dave, an experienced cycling coach having a real conversation with ${athleteName}.\n\nCOACHING PHILOSOPHY:\n1. COLLABORATIVE, NOT DIRECTIVE - We work together, I don't just tell you what to do\n2. EVIDENCE-INFORMED, NOT DOGMATIC - I use data and research, not just opinions\n3. ADAPTIVE, NOT RIGID - I adjust based on your feedback and situation\n\nMY COACHING PROCESS:\n\nSTEP 1: UNDERSTAND YOU\n- I listen carefully to what you're saying\n- I ask questions to understand your context\n- I consider your unique situation\n\nSTEP 2: GATHER RELEVANT INFORMATION\nI naturally think about what would help:\n- \"What do I know about this athlete?\" \u2192 check_athlete_capabilities\n- \"What's their recent training been like?\" \u2192 analyze_recent_training_load  \n- \"Where are they in their training?\" \u2192 review_current_training_plan\n- \"What does research say about this?\" \u2192 search_training_research\n\nI use tools COMBINATORIALLY, not in isolation. For example:\n- Fatigue discussion: athlete data + training load + fatigue research\n- Planning question: current phase + capabilities + planning principles\n\nSTEP 3: OFFER SUGGESTIONS WITH REASONING\nI explain my thinking:\n- \"Based on your FTP of X and recent load of Y...\"\n- \"Research suggests that Z approach works because...\"\n- \"Considering your goal of A and current phase B...\"\n\nSTEP 4: CHECK WITH YOU (CRITICAL STEP!)\nI always validate:\n- \"How does that sound to you?\"\n- \"Does that feel achievable given your schedule?\"\n- \"What concerns do you have about this approach?\"\n- \"What part resonates most with you?\"\n\nSTEP 5: ADJUST BASED ON YOUR FEEDBACK\n- If you have concerns, we discuss alternatives\n- If something doesn't fit, we find what does\n- We work together to create YOUR solution\n\nEXAMPLE DIALOGUE:\nAthlete: \"I'm struggling with my intervals\"\nDave: \"Thanks for sharing that. First, tell me more about what 'struggling' feels like... [listens] \nLet me check your data... [USES check_athlete_capabilities + analyze_recent_training_load]\nI see your FTP is 280W and you've done 3 interval sessions this week. That's solid work. \nResearch suggests that spacing intervals with more recovery can help... [USES search_training_research]\nHow about trying 2 interval sessions per week with 48 hours between them? \nHow does that sound given your schedule?\"\n\nKEY PRINCIPLES:\n- I'm your thinking partner, not your commander\n- I use data to inform, not to dictate  \n- I check in with you constantly\n- We find solutions together\n\nCRITICAL RESPONSE FORMAT:\n- You MUST ask ONLY ONE question per message\n- Never use numbered lists (1., 2., 3.) for questions\n- Never use bullet points for questions  \n- Never write \"Questions for you:\" or similar headers\n- Ask your single question naturally within the conversation flow\n- Wait for the athlete's answer before asking another question\n- If you need to ask follow-up questions, do so in separate messages after receiving answers\n\nEXAMPLE OF WRONG FORMAT:\n\"**Questions for you:**\n1. How are you feeling?\n2. What's your schedule?\"\n\nEXAMPLE OF CORRECT FORMAT:\n\"Thanks for sharing that. How are you feeling physically today after those 6 days?\"\n[Wait for answer]\n\"Great, and do you have any hard sessions planned for this week?\"\n[Wait for answer] \n\"What does your schedule look like for tomorrow?\"\n\nENFORCEMENT: If you catch yourself writing multiple questions, STOP and rewrite with just one.",
+          "maxIterations": 10,
+          "enableStreaming": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        848,
+        -80
+      ],
+      "id": "c03753ad-be98-45a4-9ef9-8df38b7a4afb",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get the athlete's personal profile including FTP, weight, goals, and availability. Use this to personalize advice based on their specific capabilities and objectives",
+        "operation": "executeQuery",
+        "query": "SELECT \n  json_build_object(\n    'athlete_id', id,\n    'name', name,\n    'ftp', COALESCE(athlete_ftp, strava_ftp, 0),\n    'weight_kg', COALESCE(strava_weight_kg, 0),\n    'wkg', \n      CASE \n        WHEN COALESCE(strava_weight_kg, 0) > 0 \n          THEN ROUND(COALESCE(athlete_ftp, strava_ftp, 0)::numeric / strava_weight_kg, 2)\n        ELSE 0\n      END,\n    'training_goals', COALESCE(training_goal, 'Not specified'),\n    'availability_hours', COALESCE(weekly_hours_available, 0),\n    'target_event_date', target_event_date,\n    'target_event_type', target_event_type,\n    'weeks_to_event', weeks_to_event,\n    'training_phase', training_phase,\n    'profile_date', CURRENT_DATE,\n    'strava_profile_synced', strava_profile_synced_at IS NOT NULL,\n    'power_zones', strava_power_zones,\n    'heart_rate_zones', strava_heart_rate_zones\n  ) as athlete_data\nFROM athletes \nWHERE id = {{ $json.metadata.athlete_id }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        176
+      ],
+      "id": "a1413152-0ec8-46f3-8705-581749c8f097",
+      "name": "check_athlete_capabilities",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ride_details AS (\n  SELECT \n    id,\n    ride_date,\n    COALESCE(title, 'Ride') as title,\n    duration_min,\n    tss,\n    avg_power_watts,\n    avg_heart_rate,\n    time_in_power_zones,\n    time_in_heart_rate_zones\n  FROM rides \n  WHERE athlete_id = {{ $json.metadata.athlete_id }}\n    AND ride_date >= CURRENT_DATE - INTERVAL '30 days'\n  ORDER BY ride_date DESC\n  LIMIT 5\n),\nride_summary AS (\n  SELECT \n    COUNT(*) as total_rides,\n    COALESCE(SUM(tss), 0) as total_tss,\n    ROUND(COALESCE(AVG(tss), 0), 1) as avg_tss,\n    ROUND(COALESCE(AVG(avg_power_watts), 0), 0) as avg_power,\n    COUNT(DISTINCT DATE(ride_date)) as days_with_rides\n  FROM rides \n  WHERE athlete_id = {{ $json.metadata.athlete_id }}\n    AND ride_date >= CURRENT_DATE - INTERVAL '30 days'\n)\nSELECT \n  json_build_object(\n    'recent_rides', COALESCE(json_agg(\n      json_build_object(\n        'date', ride_date,\n        'title', title,\n        'duration_minutes', duration_min,\n        'tss', tss,\n        'avg_power', avg_power_watts,\n        'avg_heart_rate', avg_heart_rate,\n        'ftp_percentage', \n          CASE \n            WHEN avg_power_watts IS NOT NULL \n              THEN ROUND((avg_power_watts::numeric / NULLIF((SELECT COALESCE(athlete_ftp, strava_ftp, 242) FROM athletes WHERE id = {{ $json.metadata.athlete_id }}), 0)) * 100, 1)\n            ELSE NULL\n          END,\n        'time_in_power_zones', time_in_power_zones,\n        'time_in_heart_rate_zones', time_in_heart_rate_zones\n      ) ORDER BY ride_date DESC\n    ), '[]'),\n    'summary', json_build_object(\n      'total_rides', COALESCE((SELECT total_rides FROM ride_summary), 0),\n      'total_tss', COALESCE((SELECT total_tss FROM ride_summary), 0),\n      'avg_tss_per_ride', COALESCE((SELECT avg_tss FROM ride_summary), 0),\n      'avg_power', COALESCE((SELECT avg_power FROM ride_summary), 0),\n      'analysis_date', CURRENT_DATE,\n      'days_with_rides', COALESCE((SELECT days_with_rides FROM ride_summary), 0)\n    )\n  ) as ride_data\nFROM ride_details;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1392,
+        144
+      ],
+      "id": "8f47612b-4dc2-42d2-9626-6126f70d5c6b",
+      "name": "analyze_recent_training_load",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get the athlete's current training phase, timeline, and progress toward goals. Use this to provide phase-appropriate advice and understand where they are in their training cycle.",
+        "operation": "executeQuery",
+        "query": "SELECT \n  json_build_object(\n    'phase_name', phase_name,\n    'focus', focus,\n    'duration_weeks', duration_weeks,\n    'start_date', start_date,\n    'today_date', CURRENT_DATE,\n    'days_until_start', GREATEST(0, start_date - CURRENT_DATE),\n    'has_started', CURRENT_DATE >= start_date,\n    'current_week', \n      CASE \n        WHEN CURRENT_DATE >= start_date THEN FLOOR((CURRENT_DATE - start_date) / 7) + 1\n        ELSE 0\n      END,\n    'weeks_until_start', \n      CASE \n        WHEN CURRENT_DATE < start_date THEN CEIL((start_date - CURRENT_DATE) / 7.0)\n        ELSE 0\n      END,\n    'rationale', rationale,\n    'target_metrics', target_metrics,\n    'is_active_phase', CURRENT_DATE >= start_date AND CURRENT_DATE < start_date + (duration_weeks * INTERVAL '7 days'),\n    'phase_status',\n      CASE \n        WHEN CURRENT_DATE < start_date THEN 'future'\n        WHEN CURRENT_DATE >= start_date AND CURRENT_DATE < start_date + (duration_weeks * INTERVAL '7 days') THEN 'active'\n        ELSE 'completed'\n      END\n  ) as phase_data\nFROM training_phases \nWHERE athlete_id = {{ $json.metadata.athlete_id }}\n  AND (completed IS NULL OR completed = false)\nORDER BY start_date DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        1024,
+        160
+      ],
+      "id": "d29d244c-469d-4754-bfb6-34a306857127",
+      "name": "review_current_training_plan",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search the training knowledge base for evidence-based principles, research, and best practices. Use this to provide scientifically-grounded advice and explain training concepts.",
+        "tableName": "training_knowledge",
+        "options": {
+          "columnNames": {
+            "values": {
+              "contentColumnName": "content"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1152,
+        144
+      ],
+      "id": "b9b33dce-a9f4-4cc7-89b7-4f27bc4f60c3",
+      "name": "search_training_research",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.metadata.athlete_id}}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        352
+      ],
+      "id": "5a4d85df-3751-4ae5-92c3-95a350b5e10e",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bf292f33-5dfb-4a69-a0c8-d2143a31746a",
+              "name": "metadata.athlete_id",
+              "value": "={{ $('When chat message received').item.json.metadata.athlete_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a953d990-5417-44cb-ac3e-cca5fe1cf6f8",
+              "name": "chatInput",
+              "value": "={{ $('When chat message received').item.json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "f98f6a96-9d4d-4687-9431-3a6786ab7417",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1200,
+        -80
+      ],
+      "id": "cf07b469-86cb-44b2-a7fb-75fe808728bd",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "chat_messages",
+          "mode": "list",
+          "cachedResultName": "chat_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $json.metadata.athlete_id }}",
+            "role": "user",
+            "context": "={}",
+            "content": "={{ $json.chatInput }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "embedding",
+              "displayName": "embedding",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "context",
+              "displayName": "context",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metadata",
+              "displayName": "metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1408,
+        -80
+      ],
+      "id": "b760f2ee-014c-4af9-9e8d-90ac4433b728",
+      "name": "Insert user prompt",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "chat_messages",
+          "mode": "list",
+          "cachedResultName": "chat_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "athlete_id": "={{ $('Edit Fields').item.json.metadata.athlete_id }}",
+            "role": "assistant",
+            "content": "={{ $('Edit Fields').item.json.output }}",
+            "context": "={}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "athlete_id",
+              "displayName": "athlete_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "embedding",
+              "displayName": "embedding",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "context",
+              "displayName": "context",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metadata",
+              "displayName": "metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1616,
+        -80
+      ],
+      "id": "bb029b6b-5687-4905-bc5c-efbca980778a",
+      "name": "Insert coach message",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{$json.metadata.user_name}}, {{ $json.chatInput }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        352
+      ],
+      "id": "18668e9d-d9a0-48c1-be12-1ac15e170892",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "search_training_research",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        []
+      ]
+    },
+    "check_athlete_capabilities": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "analyze_recent_training_load": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "review_current_training_plan": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_training_research": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Insert user prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert user prompt": {
+      "main": [
+        [
+          {
+            "node": "Insert coach message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "When chat message received": [
+      {
+        "json": {
+          "action": "sendMessage",
+          "chatInput": "do you know who I am?",
+          "metadata": {
+            "athlete_id": null,
+            "user_name": "Cyclist"
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "005fdc63-b4b8-441f-976f-5b11bff69835",
+  "activeVersionId": "005fdc63-b4b8-441f-976f-5b11bff69835",
+  "versionCounter": 321,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-04T17:44:09.976Z",
+      "createdAt": "2026-01-04T17:44:09.976Z",
+      "role": "workflow:owner",
+      "workflowId": "2eXVwdlqszVV0FXS",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

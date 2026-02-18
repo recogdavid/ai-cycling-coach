@@ -1,0 +1,155 @@
+{
+  "updatedAt": "2025-12-09T18:13:10.426Z",
+  "createdAt": "2025-10-27T16:33:26.642Z",
+  "id": "qrHCxh23RipGCNTd",
+  "name": "Athletes API - Get Workouts",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "athletes/workouts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7de6a622-05db-4878-9001-ab1a5c08c483",
+      "name": "Webhook",
+      "webhookId": "3aaa09f8-0615-4bd6-8f86-45b21aac15db"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    pw.id,\n    pw.scheduled_date,\n    pw.workout_type,\n    pw.description,\n    pw.duration_minutes,\n    pw.target_tss,\n    pw.intervals\nFROM\n    planned_workouts AS pw\nWHERE\n    pw.training_plan_id = (\n        SELECT\n            tp.id\n        FROM\n            training_plans AS tp\n        JOIN\n            planned_workouts AS p ON tp.id = p.training_plan_id\n        WHERE\n            tp.athlete_id = {{ $items(\"Webhook\")[0].json.query.athlete_id.toNumber() }}\n        GROUP BY\n            tp.id\n        HAVING\n            COUNT(p.id) > 5\n        ORDER BY\n            tp.id DESC\n        LIMIT 1\n    )\nORDER BY\n    pw.scheduled_date ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "98714825-0571-4b38-83b9-81ecf13b3a0d",
+      "name": "Execute a SQL query",
+      "executeOnce": false,
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        480,
+        0
+      ],
+      "id": "7b308ba2-8f4c-47b4-a9b7-f30d76d5317c",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "92.21.132.171",
+            "x-forwarded-for": "92.21.132.171",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            "sec-ch-ua": "\"Google Chrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+            "sec-ch-ua-mobile": "?0",
+            "accept": "*/*",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+            "referer": "https://dabosch.fit/dashboard.html",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en-GB-oxendict,en-GB;q=0.9,en;q=0.8,ar;q=0.7",
+            "priority": "u=1, i",
+            "cookie": "rl_page_init_referrer=RudderEncrypt%3AU2FsdGVkX1%2FQ4%2B3Ku35f5wdIcHUjM4fr%2FKBp0pXFpNg%3D; rl_page_init_referring_domain=RudderEncrypt%3AU2FsdGVkX1%2BWpD88So09EOnjeCK12NcQZEa4Ak3TZyI%3D; athlete_id=6; rl_anonymous_id=RudderEncrypt%3AU2FsdGVkX1%2FEKXrfNbQheSh5IyCaoT5wOyavAK9h6pRqGqeQfQofVOlvgM%2Fk%2FK0h6oQ8djwJNuhQAJ1BhvedBw%3D%3D; rl_user_id=RudderEncrypt%3AU2FsdGVkX1%2FPuyKW0xlHqnQQGeXyeCYanvQQXkRkWQB%2BhWnZTa8Xnauij7IQkIqv7IupdQ115UW7u0iFacVUWrRRRA9d5TJ89j4HoGpAVypZSRke5PbfBkojCv05beouA2Oe3RMEuiZFGcdKKQ4lYZl7Oz3erhXv%2FBh%2F190HBmI%3D; rl_trait=RudderEncrypt%3AU2FsdGVkX1%2FAP0Irqci4kPXhVx9Kf4SxB1VekN3uOGmMeTAmDUSmH4XALydfqcCYS7BJZa14bRX3uhXvUVPj3b9tNux7SZsxQPYO4%2Bw8aXWjcIw8L5NovG9jmizLyHsHMKIKRX%2BwUIDJ51IK9vAsVJyQrHwai4n3OItFIOnDWgA%3D; rl_session=RudderEncrypt%3AU2FsdGVkX19vXhjvkIZDX6HTEP3xCDhsLNs6VQAdCl4WL%2FyEndF2RLDLx%2FJmiflmX8LmK8QkMrou%2BbzrKgi04oZpMkh%2FQBBNOXOnjYhUusS%2BTW6XQMzBbsPBBpzpcEi4D%2FhBK6NmujUM1keTgL380w%3D%3D; ph_phc_4URIAm1uYfJO7j8kWSe0J8lc8IqnstRLS7Jx8NcakHo_posthog=%7B%22distinct_id%22%3A%22026c436904cc94c6838771a4f99b2917db6dd196fa05bf16e645e5640394d332%23d42b7515-3b9e-4344-96cc-445411ac6ac7%22%2C%22%24sesid%22%3A%5B1765303258645%2C%22019b0426-693d-7948-9fee-d931c4111da8%22%2C1765301184828%5D%2C%22%24epp%22%3Atrue%2C%22%24initial_person_info%22%3A%7B%22r%22%3A%22%24direct%22%2C%22u%22%3A%22https%3A%2F%2Fn8n.dabosch.fit%2Fsignin%3Fredirect%3D%25252F%22%7D%7D"
+          },
+          "params": {},
+          "query": {
+            "athlete_id": "6"
+          },
+          "body": {},
+          "webhookUrl": "https://dabosch.fit/webhook/athletes/workouts",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "ca8d7f78-d34a-44fa-91ff-299c7b1bd00d",
+  "activeVersionId": "ca8d7f78-d34a-44fa-91ff-299c7b1bd00d",
+  "versionCounter": 13,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2025-12-01T13:56:31.797Z",
+      "createdAt": "2025-12-01T13:56:31.797Z",
+      "role": "workflow:owner",
+      "workflowId": "qrHCxh23RipGCNTd",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}

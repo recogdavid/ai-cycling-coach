@@ -1,0 +1,459 @@
+{
+  "updatedAt": "2026-01-25T10:54:26.983Z",
+  "createdAt": "2026-01-04T13:07:34.052Z",
+  "id": "gcdYh8sGj1ssA4c6",
+  "name": "Strava",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "strava",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        -96
+      ],
+      "id": "1fb37f70-4a20-4688-b570-83bd8abd09ae",
+      "name": "Webhook",
+      "webhookId": "62f9f415-497b-4609-8f56-c6e59cc46180"
+    },
+    {
+      "parameters": {
+        "jsCode": "// v1.112.6 Webhook puts JSON under $json.body\nconst src = $json.body && typeof $json.body === 'object' ? $json.body : $json;\n\nconst object_type = String(src.object_type ?? src.objectType ?? '').trim().toLowerCase();\nconst aspect_type = String(src.aspect_type ?? src.aspectType ?? '').trim().toLowerCase();\n\nconst stravaAthleteId = Number(src.owner_id ?? src.ownerId);\nconst activityId = Number(src.object_id ?? src.objectId);\n\n// Map Strava athlete ID to database athlete ID\n// For now, hardcode since you only have athlete_id 13 with strava_athlete_id 2615877\nconst athleteIdMap = {\n  2615877: 13  // Strava ID -> Database ID\n};\n\nconst athleteId = athleteIdMap[stravaAthleteId] || stravaAthleteId;\n\nreturn [\n  {\n    _raw: src, // keep for debugging\n    object_type,\n    aspect_type,\n    activityId: activityId,\n    athleteId: athleteId,  // Now this will be 13, not 2615877\n    strava_athlete_id: stravaAthleteId,  // Keep original for reference\n    event_time: Number(src.event_time ?? src.eventTime),\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -96
+      ],
+      "id": "de087dc6-08bb-4798-980d-9d16fd0e7875",
+      "name": "Extract IDs"
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $json;\n\nconst ids = $items('Extract IDs')[0]?.json || {};\nconst athlete_id = ids.athleteId;\n\nconst toInt = (v) => Number.isFinite(v) ? Math.round(v) : null;\nconst toFloat = (v) => Number.isFinite(v) ? Number(v.toFixed(2)) : null;\n\nconst np_watts = toInt(a.weighted_average_watts);\nconst ride_date = a.start_date_local || a.start_date || null;\nconst distance_km = Number(((a.distance || 0) / 1000).toFixed(2));\nconst duration_min = toInt((a.moving_time || 0) / 60);\nconst avg_power_watts = toInt(a.average_watts);\nconst avg_heart_rate = toInt(a.average_heartrate);\nconst tss = Number.isFinite(a.suffer_score) ? Number(a.suffer_score.toFixed(2)) : null;\nconst strava_athlete_id = a.athlete?.id ?? null;\n\n// New fields extraction\nconst max_power_watts = toInt(a.max_watts);\nconst max_heart_rate = toInt(a.max_heartrate);\nconst avg_cadence = toInt(a.average_cadence);\nconst max_cadence = toInt(a.max_cadence);\nconst elevation_gain = toInt(a.total_elevation_gain);\nconst elevation_high = toFloat(a.elev_high);\nconst elevation_low = toFloat(a.elev_low);\nconst avg_temperature = toFloat(a.average_temp);\nconst kilojoules = toInt(a.kilojoules);\nconst calories = toInt(a.calories);\nconst workout_type = toInt(a.workout_type);\n\n// Zone data (JSONB fields)\nconst time_in_heart_rate_zones = a.time_in_heart_rate_zones ? JSON.stringify(a.time_in_heart_rate_zones) : null;\nconst time_in_power_zones = a.time_in_power_zones ? JSON.stringify(a.time_in_power_zones) : null;\n\n// Boolean flags\nconst has_heartrate = Boolean(a.has_heartrate);\nconst has_power = Boolean(a.has_power);\nconst heartrate_opt_out = Boolean(a.heartrate_opt_out);\nconst display_hide_heartrate_option = Boolean(a.display_hide_heartrate_option);\nconst perceived_exertion = toFloat(a.perceived_exertion);\n\n// Text fields\nconst title = a.name || null;\nconst description = a.description || null;\nconst gear_id = a.gear_id || null;\nconst device_name = a.device_name || null;\n\nreturn [{\n  json: {\n    // Existing fields\n    strava_athlete_id,\n    athlete_id,\n    ride_date,\n    distance_km,\n    duration_min,\n    avg_power_watts,\n    avg_heart_rate,\n    tss,\n    source: 'strava',\n    external_id: a.id,\n    np_watts,\n    strava_activity_id: a.id,\n    strava_external_id: a.external_id ?? null,\n    \n    // New fields\n    max_power_watts,\n    max_heart_rate,\n    avg_cadence,\n    max_cadence,\n    elevation_gain,\n    elevation_high,\n    elevation_low,\n    avg_temperature,\n    kilojoules,\n    calories,\n    workout_type,\n    \n    // Zone data (JSONB)\n    time_in_heart_rate_zones,\n    time_in_power_zones,\n    \n    // Boolean flags\n    has_heartrate,\n    has_power,\n    heartrate_opt_out,\n    display_hide_heartrate_option,\n    perceived_exertion,\n    \n    // Text fields\n    title,\n    description,\n    gear_id,\n    device_name\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -96
+      ],
+      "id": "c7ebbfc0-b294-4931-a022-930a4eafe7c1",
+      "name": "Tranform rides now"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0dea56e-6b28-4514-ab67-481fd6c58f87",
+              "leftValue": "={{ String($json.exists).trim().toLowerCase() === 'true' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        -96
+      ],
+      "id": "675e2a1a-7a4e-40cd-b664-2d80f57f9d5b",
+      "name": "Has Activity1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL with proper quoting\nconst sql = `\nINSERT INTO rides (\n    athlete_id,\n    strava_activity_id,\n    ride_date,\n    title,\n    distance_km,\n    duration_min,\n    avg_power_watts,\n    avg_heart_rate,\n    tss,\n    source,\n    external_id,\n    np_watts,\n    strava_external_id,\n    max_power_watts,\n    max_heart_rate,\n    avg_cadence,\n    max_cadence,\n    elevation_gain,\n    elevation_high,\n    elevation_low,\n    avg_temperature,\n    kilojoules,\n    calories,\n    workout_type,\n    device_name,\n    description,\n    gear_id,\n    has_heartrate,\n    has_power,\n    heartrate_opt_out,\n    display_hide_heartrate_option,\n    perceived_exertion\n)\nVALUES (\n    ${$json.athlete_id},\n    ${$json.strava_activity_id},\n    '${$json.ride_date}'::timestamp,\n    '${$json.title ? $json.title.replace(/'/g, \"''\") : ''}',\n    ${$json.distance_km},\n    ${$json.duration_min},\n    ${$json.avg_power_watts || 'NULL'},\n    ${$json.avg_heart_rate || 'NULL'},\n    ${$json.calculated_tss || 'NULL'},\n    'strava',\n    ${$json.external_id},\n    ${$json.np_watts || 'NULL'},\n    ${$json.strava_external_id ? `'${$json.strava_external_id.replace(/'/g, \"''\")}'` : 'NULL'},\n    ${$json.max_power_watts || 'NULL'},\n    ${$json.max_heart_rate || 'NULL'},\n    ${$json.avg_cadence || 'NULL'},\n    ${$json.max_cadence || 'NULL'},\n    ${$json.elevation_gain || 'NULL'},\n    ${$json.elevation_high || 'NULL'},\n    ${$json.elevation_low || 'NULL'},\n    ${$json.avg_temperature || 'NULL'},\n    ${$json.kilojoules || 'NULL'},\n    ${$json.calories || 'NULL'},\n    ${$json.workout_type || 'NULL'},\n    ${$json.device_name ? `'${$json.device_name.replace(/'/g, \"''\")}'` : 'NULL'},\n    ${$json.description ? `'${$json.description.replace(/'/g, \"''\")}'` : 'NULL'},\n    ${$json.gear_id ? `'${$json.gear_id.replace(/'/g, \"''\")}'` : 'NULL'},\n    ${$json.has_heartrate || false},\n    ${$json.has_power || false},\n    ${$json.heartrate_opt_out || false},\n    ${$json.display_hide_heartrate_option || false},\n    ${$json.perceived_exertion || 'NULL'}\n)\nON CONFLICT (source, external_id) \nDO UPDATE SET \n    ride_date = EXCLUDED.ride_date,\n    title = EXCLUDED.title,\n    distance_km = EXCLUDED.distance_km,\n    duration_min = EXCLUDED.duration_min,\n    avg_power_watts = EXCLUDED.avg_power_watts,\n    avg_heart_rate = EXCLUDED.avg_heart_rate,\n    tss = EXCLUDED.tss,\n    np_watts = EXCLUDED.np_watts,\n    max_power_watts = EXCLUDED.max_power_watts,\n    max_heart_rate = EXCLUDED.max_heart_rate,\n    avg_cadence = EXCLUDED.avg_cadence,\n    max_cadence = EXCLUDED.max_cadence,\n    elevation_gain = EXCLUDED.elevation_gain,\n    elevation_high = EXCLUDED.elevation_high,\n    elevation_low = EXCLUDED.elevation_low,\n    avg_temperature = EXCLUDED.avg_temperature,\n    kilojoules = EXCLUDED.kilojoules,\n    calories = EXCLUDED.calories,\n    workout_type = EXCLUDED.workout_type,\n    device_name = EXCLUDED.device_name,\n    description = EXCLUDED.description,\n    gear_id = EXCLUDED.gear_id,\n    has_heartrate = EXCLUDED.has_heartrate,\n    has_power = EXCLUDED.has_power,\n    heartrate_opt_out = EXCLUDED.heartrate_opt_out,\n    display_hide_heartrate_option = EXCLUDED.display_hide_heartrate_option,\n    perceived_exertion = EXCLUDED.perceived_exertion;`;\n\nreturn [{ json: { sql_query: sql } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        -96
+      ],
+      "id": "2419178d-f750-4395-9991-14d7b0c8dfb4",
+      "name": "build sql query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql_query }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2352,
+        -96
+      ],
+      "id": "affe21e2-933e-4eaf-a6c9-08310e06d0ed",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseKey": "={\n  \"success\": true,\n  \"message\": \"Activity synced successfully\",\n  \"activity_id\": {{ $json.strava_activity_id }},\n  \"tss_calculated\": {{ $json.calculated_tss }},\n  \"athlete_id\": {{ $json.athlete_id_for_db }}\n}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2688,
+        -96
+      ],
+      "id": "f75cfc9f-f7e4-4c94-9829-f01c626a87b7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT strava_access_token \nFROM athletes \nWHERE ID = {{ $json.athleteId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        352,
+        -176
+      ],
+      "id": "ebcd2505-59cb-4704-a4b3-799164384be0",
+      "name": "get athlete token",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.strava.com/api/v3/activities/{{ $json.activityId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.strava_access_token.trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1024,
+        -192
+      ],
+      "id": "17140e60-f351-4301-88e7-99d2928cc23d",
+      "name": "get activity"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        560,
+        48
+      ],
+      "id": "7908d82d-edff-4403-be9f-1f69e66aa360",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.strava.com/api/v3/activities/{{ $json.activityId }}/zones",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.strava_access_token.trim() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        112
+      ],
+      "id": "d7b180c9-760b-4e1d-8908-3ab592726240",
+      "name": "get zones"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1248,
+        -96
+      ],
+      "id": "d92dd3f7-fb67-4482-9f48-cd8498e62868",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get ALL items from the Zones HTTP Request\nconst allItems = $input.all();\n\nconsole.log('Number of items:', allItems.length);\nconsole.log('First item:', allItems[0]?.json);\nconsole.log('Second item:', allItems[1]?.json);\n\nlet heartRateZones = null;\nlet powerZones = null;\n\n// Process all items\nallItems.forEach(item => {\n  const zone = item.json;\n  console.log('Processing zone type:', zone.type);\n  \n  if (zone.type === 'heartrate') {\n    heartRateZones = {\n      zones: zone.distribution_buckets,\n      custom_zones: zone.custom_zones || false,\n      score: zone.score,\n      sensor_based: zone.sensor_based,\n      points: zone.points\n    };\n  } else if (zone.type === 'power') {\n    powerZones = {\n      zones: zone.distribution_buckets,\n      sensor_based: zone.sensor_based\n    };\n  }\n});\n\nconsole.log('HR zones result:', heartRateZones);\nconsole.log('Power zones result:', powerZones);\n\n// Return a SINGLE item with both zone fields\nreturn [{\n  json: {\n    time_in_heart_rate_zones: heartRateZones,\n    time_in_power_zones: powerZones\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "1d892f4d-198b-4ec2-a41e-14887b3753df",
+      "name": "zone transformer"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IDs": {
+      "main": [
+        [
+          {
+            "node": "get athlete token",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tranform rides now": {
+      "main": [
+        [
+          {
+            "node": "build sql query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Activity1": {
+      "main": [
+        [
+          {
+            "node": "Tranform rides now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build sql query": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get athlete token": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "get activity": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "get activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "get zones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get zones": {
+      "main": [
+        [
+          {
+            "node": "zone transformer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Has Activity1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "zone transformer": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "dabosch.fit",
+            "x-real-ip": "185.205.246.95",
+            "x-forwarded-for": "185.205.246.95",
+            "x-forwarded-proto": "https",
+            "connection": "close",
+            "content-length": "200",
+            "user-agent": "curl/8.5.0",
+            "accept": "*/*",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "aspect_type": "create",
+            "event_time": 1767171814,
+            "object_id": 17158512782,
+            "object_type": "activity",
+            "owner_id": 2615877,
+            "subscription_id": 309356,
+            "updates": {}
+          },
+          "webhookUrl": "https://dabosch.fit/webhook/strava",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "3af03806-6b8c-4135-ac62-0eff0fa1809c",
+  "activeVersionId": "3af03806-6b8c-4135-ac62-0eff0fa1809c",
+  "versionCounter": 23,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-01-04T13:07:34.052Z",
+      "createdAt": "2026-01-04T13:07:34.052Z",
+      "role": "workflow:owner",
+      "workflowId": "gcdYh8sGj1ssA4c6",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}
