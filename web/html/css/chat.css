@@ -1,0 +1,119 @@
+/* ===== CSS VARIABLES FOR N8N CHAT WIDGET CUSTOMIZATION ===== */
+:root {
+    /* Primary colors - using your app's color scheme */
+    --chat--color--primary: #667eea;
+    --chat--color--primary-shade-50: #5a67d8;
+    --chat--color--primary--shade-100: #4f5bc4;
+    
+    /* Secondary colors */
+    --chat--color--secondary: #764ba2;
+    --chat--color-secondary-shade-50: #6a4290;
+    --chat--color-secondary-shade-100: #5e397e;
+    
+    /* Neutral colors */
+    --chat--color-white: #ffffff;
+    --chat--color-light: #f5f7fa;
+    --chat--color-light-shade-50: #edf2f7;
+    --chat--color-light-shade-100: #e2e8f0;
+    --chat--color-medium: #cbd5e0;
+    --chat--color-dark: #2D3748;
+    --chat--color-disabled: #a0aec0;
+    --chat--color-typing: #718096;
+    
+    /* Spacing and sizing */
+    --chat--spacing: 1rem;
+    --chat--border-radius: 8px; /* Your rounded corners */
+    --chat--transition-duration: 0.2s;
+    
+    /* Window sizing */
+    --chat--window--width: 100%;
+    --chat--window--height: 500px;
+    
+    /* Header styling */
+    --chat--header-height: auto;
+    --chat--header--padding: var(--chat--spacing);
+    --chat--header--background: #2D3748; /* Your header color */
+    --chat--header--color: var(--chat--color-white);
+    --chat--header--border-bottom: none;
+    --chat--heading--font-size: 1.5rem;
+    --chat--subtitle--font-size: 0.9rem;
+    --chat--subtitle--line-height: 1.5;
+    
+    /* Message styling */
+    --chat--message--font-size: 1rem;
+    --chat--message--padding: 1rem;
+    --chat--message--border-radius: var(--chat--border-radius);
+    --chat--message-line-height: 1.6;
+    
+    /* Bot/Assistant message styling */
+    --chat--message--bot--background: var(--chat--color-white);
+    --chat--message--bot--color: var(--chat--color-dark);
+    --chat--message--bot--border: 1px solid #e2e8f0;
+    
+    /* User message styling */
+    --chat--message--user--background: var(--chat--color--primary);
+    --chat--message--user--color: var(--chat--color-white);
+    --chat--message--user--border: none;
+    
+    /* Input area */
+    --chat--textarea--height: 50px;
+    --chat--textarea--background: var(--chat--color-white);
+    --chat--textarea--border: 1px solid #cbd5e0;
+    --chat--textarea--border-radius: var(--chat--border-radius);
+    
+    /* Toggle button (if using minimized mode) */
+    --chat--toggle--background: var(--chat--color--primary);
+    --chat--toggle--hover--background: var(--chat--color--primary-shade-50);
+    --chat--toggle--active--background: var(--chat--color--primary--shade-100);
+    --chat--toggle--color: var(--chat--color-white);
+    
+    /* Code/pre blocks */
+    --chat--message--pre--background: rgba(0, 0, 0, 0.05);
+}
+
+/* ===== OVERRIDES FOR N8N CHAT WIDGET ===== */
+/* These styles will apply to the n8n Chat widget elements */
+#n8n-chat {
+    background: var(--chat--color-light);
+}
+
+/* Ensure the chat widget takes full height of its container */
+#n8n-chat .chat-window {
+    height: 100% !important;
+}
+
+/* Custom styling for the chat messages to match your design */
+#n8n-chat .message-bot {
+    max-width: 80%;
+    margin-right: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#n8n-chat .message-user {
+    max-width: 80%;
+    margin-left: auto;
+}
+
+/* Style the input area */
+#n8n-chat .chat-input {
+    border-top: 1px solid #e2e8f0;
+    background: white;
+    padding: 1rem;
+}
+
+/* Style the send button */
+#n8n-chat .send-button {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    margin-left: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+#n8n-chat .send-button:hover {
+    background: #5a67d8;
+}

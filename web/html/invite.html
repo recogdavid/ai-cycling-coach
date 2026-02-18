@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Invite Code - AI Cycling Coach</title>
+    <link rel="stylesheet" href="css/global.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 2rem;
+        }
+
+        .logo img {
+            height: 60px;
+            width: auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .welcome-text {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .strava-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .strava-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #fc5200;
+        }
+
+        .strava-details h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .strava-details p {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .invite-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .invite-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .invite-input.error {
+            border-color: #ef4444;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .submit-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+
+        .submit-button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .submit-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .helper-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            h1 {
+                font-size: 1.75rem;
+            }
+            
+            .strava-info {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+        </div>
+        
+        <h1>Welcome to AI Cycling Coach!</h1>
+        <p class="welcome-text" id="welcomeText">Enter your invite code to get started</p>
+        
+        <div class="strava-info" id="stravaInfo">
+            <!-- Filled by JavaScript -->
+        </div>
+        
+        <div class="form-group">
+            <label for="inviteCode">Invite Code</label>
+            <input type="text" 
+                   id="inviteCode" 
+                   class="invite-input" 
+                   placeholder="Enter the code you received"
+                   autocomplete="off"
+                   autocapitalize="off"
+                   spellcheck="false">
+            <div class="error-message" id="inviteError">
+                Invalid invite code. Please check and try again.
+            </div>
+        </div>
+        
+        <button class="submit-button" id="submitButton">
+            Continue to Onboarding
+        </button>
+        
+        <p class="helper-text">
+            Don't have an invite code? Contact your coach or administrator.
+            <br>
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+        </p>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            validateInviteUrl: 'https://dabosch.fit/webhook/validate-code',
+            profileUrl: 'https://dabosch.fit/profile.html'
+        };
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const athleteId = urlParams.get('athlete_id');
+        const stravaName = urlParams.get('strava_name') || 'Cyclist';
+
+        // DOM Elements
+        const welcomeText = document.getElementById('welcomeText');
+        const stravaInfo = document.getElementById('stravaInfo');
+        const inviteCodeInput = document.getElementById('inviteCode');
+        const inviteError = document.getElementById('inviteError');
+        const submitButton = document.getElementById('submitButton');
+
+        // Initialize page
+        function initPage() {
+            console.log('Invite page initialized');
+            console.log('Athlete ID:', athleteId);
+            console.log('Strava Name:', stravaName);
+
+            if (!athleteId) {
+                showError('Missing Strava information. Please sign in again.');
+                return;
+            }
+
+            // Update welcome text
+            welcomeText.textContent = `Welcome, ${stravaName}! Enter your invite code to get started`;
+
+            // Update Strava info display
+            stravaInfo.innerHTML = `
+                <div style="background: #fc5200; color: white; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
+                    ${stravaName.charAt(0).toUpperCase()}
+                </div>
+                <div class="strava-details">
+                    <h3>${stravaName}</h3>
+                    <p>Athlete ID: ${athleteId}</p>
+                </div>
+            `;
+
+            // Set up event listeners
+            inviteCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    validateInviteCode();
+                }
+            });
+
+            submitButton.addEventListener('click', validateInviteCode);
+
+            // Focus on input
+            inviteCodeInput.focus();
+        }
+
+        // Validate invite code
+        async function validateInviteCode() {
+            const inviteCode = inviteCodeInput.value.trim();
+            
+            if (!inviteCode) {
+                showError('Please enter an invite code');
+                return;
+            }
+
+            // Clear any previous error
+            hideError();
+            
+            // Show loading state
+            submitButton.innerHTML = `
+                <span class="loading-spinner"></span>
+                Validating code...
+            `;
+            submitButton.disabled = true;
+
+            try {
+                // Call n8n webhook to validate invite code
+                const response = await fetch(CONFIG.validateInviteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        invite_code: inviteCode,
+                        athlete_id: athleteId,
+                        strava_name: stravaName
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Success - redirect to onboarding with athlete_id
+                    console.log('Invite code validated successfully:', result);
+                    window.location.href = `${CONFIG.profileUrl}?athlete_id=${result.athlete_id}`;
+                } else {
+                    // Invalid code
+                    showError(result.message || 'Invalid invite code');
+                    submitButton.innerHTML = 'Continue to Onboarding';
+                    submitButton.disabled = false;
+                    inviteCodeInput.select();
+                }
+            } catch (error) {
+                console.error('Error validating invite code:', error);
+                showError('Network error. Please try again.');
+                submitButton.innerHTML = 'Continue to Onboarding';
+                submitButton.disabled = false;
+            }
+        }
+
+        // Error handling
+        function showError(message) {
+            inviteError.textContent = message;
+            inviteError.style.display = 'block';
+            inviteCodeInput.classList.add('error');
+        }
+
+        function hideError() {
+            inviteError.style.display = 'none';
+            inviteCodeInput.classList.remove('error');
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

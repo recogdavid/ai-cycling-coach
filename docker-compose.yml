@@ -147,7 +147,34 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s      
+      start_period: 40s 
+  ai-workout-generator:
+    build: ./ai-workout-generator
+    container_name: ai-cycling-coach-ai-workout-generator
+    ports:
+      - "8004:8004"  # Different port from other services
+    environment:
+      - DEEPSEEK_API_KEY=sk-20ad99b349e84740b934df7113795275
+      - DEEPSEEK_URL=https://api.deepseek.com/v1/chat/completions
+      - QWEN_URL=http://172.17.0.1:11434/api/generate
+      - QWEN_MODEL=qwen2.5:7b
+      - NOMIC_URL=http://host.docker.internal:8080/embed  # If Nomic on host
+      - VECTOR_DB_URL=http://host.docker.internal:8000  # Your vector DB
+      - ATHLETE_STATE_URL=http://athlete-state:8001
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/aicoach
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./ai-workout-generator:/app  # For development hot-reload
+      - ./knowledge:/app/knowledge:ro  # Mount your knowledge base
+    depends_on:
+      - postgres
+      - redis
+      - athlete-state
+    restart: unless-stopped
+    networks:
+      - ai-coach-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"    
 networks:
   ai-coach-net:
     driver: bridge

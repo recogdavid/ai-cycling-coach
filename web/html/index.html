@@ -1,224 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dave's AI Cycling Coach - Personalized Training</title>
-  <link rel="icon" type="image/svg+xml" href="/assets/logos/dabosch-icon.svg">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: white;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-    
-    header {
-      text-align: center;
-      padding: 4rem 0 2rem;
-    }
-    
-    .logo {
-      margin-bottom: 2rem;
-    }
-    
-    .logo img {
-      height: 80px;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-    }
-    
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    
-    .tagline {
-      font-size: 1.2rem;
-      opacity: 0.95;
-      margin-bottom: 3rem;
-    }
-    
-    .cta-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 1rem;
-    }
-    
-    .btn {
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 600;
-      transition: all 0.2s;
-      display: inline-block;
-      font-size: 1.1rem;
-    }
-    
-    .btn-primary {
-      background: white;
-      color: #667eea;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    }
-    
-    .btn-secondary {
-      background: rgba(255,255,255,0.2);
-      color: white;
-      border: 2px solid white;
-    }
-    
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.3);
-      transform: translateY(-2px);
-    }
-    
-    .helper-text {
-      text-align: center;
-      font-size: 0.9rem;
-      opacity: 0.8;
-      margin-bottom: 4rem;
-    }
-    
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2rem;
-      margin: 4rem 0;
-    }
-    
-    .feature {
-      background: rgba(255,255,255,0.1);
-      padding: 2rem;
-      border-radius: 12px;
-      backdrop-filter: blur(10px);
-    }
-    
-    .feature h3 {
-      margin-bottom: 1rem;
-      font-size: 1.3rem;
-    }
-    
-    .feature p {
-      opacity: 0.9;
-      line-height: 1.6;
-    }
-    
-    footer {
-      text-align: center;
-      padding: 3rem 0 2rem;
-      border-top: 1px solid rgba(255,255,255,0.2);
-      margin-top: 4rem;
-    }
-    
-    .strava-footer {
-      display: inline-block;
-      margin-top: 1rem;
-    }
-    
-    .strava-footer img {
-      height: 40px;
-      opacity: 0.9;
-      transition: opacity 0.2s;
-    }
-    
-    .strava-footer:hover img {
-      opacity: 1;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dave's AI Cycling Coach</title>
+    <link rel="stylesheet" href="css/global.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            margin-bottom: 2rem;
+        }
+
+        .logo img {
+            height: 60px;
+            width: auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        .features {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .feature-icon {
+            background: #f3f4f6;
+            border-radius: 10px;
+            padding: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            color: #667eea;
+        }
+
+        .feature h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .feature p {
+            font-size: 0.95rem;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .strava-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            background: #fc5200;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+
+        .strava-button:hover {
+            background: #e64a00;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(252, 82, 0, 0.2);
+        }
+
+        .strava-button:active {
+            transform: translateY(0);
+        }
+
+        .strava-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .helper-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 2rem 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .strava-button {
+                padding: 0.875rem 1.5rem;
+                font-size: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo">
-        <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach" #style="filter: brightness(0) invert(1) drop-shadow(0 4px 8px rgba(0,0,0,0.2));">
-      </div>
-      <h1>Personalized Cycling Training</h1>
-      <p class="tagline">AI-powered plans based on your Strava data</p>
-      
-      <div class="cta-buttons">
-        <a href="/onboarding.html" class="btn btn-primary">
-          🚀 Get Started (New User)
+    <div class="container">
+        <div class="logo">
+            <img src="/assets/logos/dabosch-logo-full.svg" alt="Dave's AI Cycling Coach">
+        </div>
+        
+        <h1>AI-Powered Cycling Training</h1>
+        <p class="tagline">Get personalized training plans based on your Strava data</p>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Personalized Plans</h3>
+                    <p>AI-generated training tailored to your fitness level and goals</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Data-Driven Insights</h3>
+                    <p>Analyze your Strava data to track progress and optimize training</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>Progress Tracking</h3>
+                    <p>Monitor your FTP, weight, and performance metrics over time</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SINGLE BUTTON: Sign In with Strava -->
+        <a href="https://www.strava.com/oauth/authorize?client_id=180641&response_type=code&redirect_uri=https%3A%2F%2Fdabosch.fit%2Fwebhook%2Fapi%2Fstrava%2Fcallback&scope=activity%3Aread_all%2Cprofile%3Aread_all&state=signin&approval_prompt=force" 
+           class="strava-button" 
+           id="stravaSignInBtn">
+            <svg class="strava-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+            </svg>
+            Sign In with Strava
         </a>
-      </div>
-      
-      <div class="cta-buttons" style="margin-top: 0.5rem;">
-	
-	<a href="https://www.strava.com/oauth/authorize?client_id=180641&response_type=code&redirect_uri=https://dabosch.fit/webhook/api/strava/callback&scope=read,activity:read_all,profile:read_all&state=login" class="strava-connect-btn">
-        <img src="/assets/strava/btn_strava_connect_with_orange.svg" alt="Sign In with Strava" style="height: 48px; width: auto;">
-        </a> 
-      </div>
-      
-      <p class="helper-text">
-        New to Dave's AI Cycling Coach? Click "Get Started"<br>
-        Already have an account? Use the Strava button to sign in
-      </p>
-    </header>
-    
-    <div class="features">
-      <div class="feature">
-        <h3>📊 AI-Generated Plans</h3>
-        <p>Personalized 7-day training plans using Joe Friel's methodology and your FTP data.</p>
-      </div>
-      
-      <div class="feature">
-        <h3>💪 FTP Tracking</h3>
-        <p>Automatic FTP recommendations based on your recent performance and power data.</p>
-      </div>
-      
-      <div class="feature">
-        <h3>⚡ Structured Workouts</h3>
-        <p>Detailed intervals with power zones, from recovery rides to VO2 max efforts.</p>
-      </div>
-      
-      <div class="feature">
-        <h3>🎯 Polarized Training</h3>
-        <p>Evidence-based 80/20 training: balance easy rides with high-intensity intervals.</p>
-      </div>
-      
-      <div class="feature">
-        <h3>🔒 Privacy-First</h3>
-        <p>All AI runs locally. Your Strava data never leaves our infrastructure.</p>
-      </div>
-      
-      <div class="feature">
-        <h3>🧠 Smart Coaching</h3>
-        <p>AI analyzes completed rides and provides actionable feedback.</p>
-      </div>
+        
+        <p class="helper-text">
+            By signing in, you agree to our Terms of Service and Privacy Policy.<br>
+            Your data is securely stored and only used for training analysis.
+        </p>
+        
+        <div class="footer">
+            <p>© 2026 Dave's AI Cycling Coach. All rights reserved.</p>
+            <p>Powered by Strava API</p>
+        </div>
     </div>
-    
-    <footer>
-      <div style="margin-bottom: 1.5rem; opacity: 0.9; font-size: 0.9rem;">
-        Open Source • Local AI (Ollama + Mistral) • Self-Hosted
-      </div>
-      
-      <a href="https://www.strava.com" target="_blank" class="strava-footer">
-        <img src="/assets/strava/api_logo_pwrdBy_strava_stack_white.svg" alt="Powered by Strava">
-      </a>
-      
-      <div style="margin-top: 2rem; font-size: 0.85rem; opacity: 0.6;">
-        <a href="https://github.com/recogdavid/ai-cycling-coach" target="_blank" style="color: white; text-decoration: none;">
-          View on GitHub
-        </a>
-      </div>
-    </footer>
-  </div>
+
+    <script>
+        // Simple loading state for the button
+        document.getElementById('stravaSignInBtn').addEventListener('click', function(e) {
+            this.innerHTML = `
+                <div style="width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; display: inline-block; margin-right: 10px;"></div>
+                Connecting to Strava...
+            `;
+            this.style.pointerEvents = 'none';
+            
+            // Add spin animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
 </body>
 </html>

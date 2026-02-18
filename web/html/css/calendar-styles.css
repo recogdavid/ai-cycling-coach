@@ -1,0 +1,166 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+header { background: #2D3748; /* Dark gray for better contrast */ color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.subtitle { font-size: 1.1rem; opacity: 0.9; }
+.calendar-controls { display: flex; justify-content: space-between; align-items: center; background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.month-nav { display: flex; gap: 1rem; align-items: center; }
+.btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; background: #667eea; color: white; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+.btn:hover { background: #5a67d8; transform: translateY(-1px); }
+.btn-secondary { background: #e2e8f0; color: #4a5568; }
+.btn-secondary:hover { background: #cbd5e0; }
+.current-month { font-size: 1.5rem; font-weight: 600; color: #2d3748; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.day-header { background: #4a5568; color: white; padding: 1rem; text-align: center; font-weight: 600; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+.day-cell { background: white; min-height: 120px; padding: 0.5rem; position: relative; transition: all 0.2s; }
+.day-cell:hover { background: #f7fafc; transform: translateY(-2px); z-index: 1; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.day-number { font-size: 0.9rem; color: #718096; margin-bottom: 0.5rem; }
+.workout-card { background: #edf2f7; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.5rem; border-left: 4px solid; cursor: pointer; transition: all 0.2s; }
+.workout-card:hover { background: #e2e8f0; transform: translateX(2px); }
+.workout-threshold { border-left-color: #f56565; }
+.workout-endurance { border-left-color: #48bb78; }
+.workout-recovery { border-left-color: #4299e1; }
+.workout-vo2_max { border-left-color: #ed8936; }
+.workout-type { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: #4a5568; }
+.workout-duration { font-size: 0.8rem; color: #718096; }
+.workout-tss { font-size: 0.8rem; color: #667eea; font-weight: 600; }
+.status-badge { position: absolute; top: 0.5rem; right: 0.5rem; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 12px; font-weight: 600; }
+.status-completed { background: #c6f6d5; color: #22543d; }
+.status-scheduled { background: #bee3f8; color: #2c5282; }
+.status-skipped { background: #fed7d7; color: #742a2a; }
+.loading { text-align: center; padding: 2rem; color: #718096; }
+.error { background: #fed7d7; color: #742a2a; padding: 1rem; border-radius: 6px; margin: 1rem 0; }
+.day-detail-panel { position: fixed; top: 0; right: 0; width: 400px; height: 100vh; background: white; box-shadow: -4px 0 20px rgba(0,0,0,0.1); padding: 2rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s ease; z-index: 1000; }
+.day-detail-panel.open { transform: translateX(0); }
+.close-panel { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #718096; }
+.workout-detail { background: #f7fafc; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+.file-downloads { display: flex; gap: 0.5rem; margin: 1rem 0; }
+.feedback-section { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+.rpe-slider { width: 100%; margin: 1rem 0; }
+.rpe-labels { display: flex; justify-content: space-between; font-size: 0.9rem; color: #718096; }
+@media (max-width: 768px) {
+.calendar-grid { grid-template-columns: 1fr; }
+.day-header { display: none; }
+.day-detail-panel { width: 100%; }
+}
+
+/* App Branding */
+.app-branding {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.app-branding h1 {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.app-tagline {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+}
+
+/* Page Title */
+.page-title {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.page-title h2 {
+    font-size: 1.8rem;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+/* Athlete Info */
+.athlete-info {
+    text-align: center;
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.athlete-info strong {
+    color: white;
+    font-weight: 600;
+}
+
+/* Strava Footer */
+.strava-footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.strava-footer a {
+    display: inline-block;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.strava-footer a:hover {
+    opacity: 1;
+}
+
+/* Update header to accommodate new structure */
+header {
+    background: #2D3748; /* Dark gray for better contrast */
+    color: white;
+    padding: 2.5rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Adjust calendar title */
+.calendar-title {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.calendar-title h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.25rem;
+}
+
+.subtitle {
+    font-size: 1rem;
+    opacity: 0.8;
+    text-align: center;
+}
+
+/* Logo styling */
+.app-logo {
+    height: 60px;
+    margin-bottom: 0.5rem;
+}
+
+/* App branding with horizontal layout */
+.app-branding {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.app-branding h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.app-tagline {
+    margin: 0.25rem 0 0 0;
+    opacity: 0.9;
+}

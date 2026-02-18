@@ -1,0 +1,536 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f7fa; overflow-y: auto; }
+
+.profile-wrapper { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+.profile-header { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+    color: white; 
+    padding: 2rem; 
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.profile-pic { 
+    width: 120px; 
+    height: 120px; 
+    border-radius: 50%; 
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #667eea;
+}
+
+.profile-info h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+.profile-info p { opacity: 0.9; font-size: 0.95rem; }
+
+.profile-meta { 
+    display: flex; 
+    gap: 1.5rem; 
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.profile-meta-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+}
+
+.profile-sections { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+    gap: 1.5rem; 
+    margin-bottom: 2rem;
+}
+
+.section-card { 
+    background: white; 
+    border-radius: 12px; 
+    padding: 1.5rem; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.section-header { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    margin-bottom: 1.5rem; 
+    padding-bottom: 0.75rem; 
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.section-title { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+    font-size: 1.2rem; 
+    font-weight: 600; 
+    color: #333;
+}
+
+.section-badge { 
+    background: #e2e8f0; 
+    color: #4a5568; 
+    padding: 0.25rem 0.75rem; 
+    border-radius: 20px; 
+    font-size: 0.8rem; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.25rem;
+}
+
+.section-badge.synced { background: #c6f6d5; color: #22543d; }
+.section-badge.editable { background: #fed7d7; color: #742a2a; }
+
+.info-grid { display: grid; gap: 1rem; }
+
+.info-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 0.75rem 0; 
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.info-item:last-child { border-bottom: none; }
+
+.info-label { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    color: #4a5568; 
+    font-weight: 500;
+}
+
+.info-value { 
+    font-weight: 600; 
+    color: #2d3748;
+}
+
+.info-value.editable { 
+    color: #667eea; 
+    cursor: pointer; 
+    padding: 0.25rem 0.5rem; 
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.info-value.editable:hover { background: #f7fafc; }
+
+.form-group { margin-bottom: 1rem; }
+
+.form-label { 
+    display: block; 
+    margin-bottom: 0.5rem; 
+    font-weight: 500; 
+    color: #4a5568;
+}
+
+.form-input, .form-select, .form-textarea { 
+    width: 100%; 
+    padding: 0.75rem; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 6px; 
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus { 
+    outline: none; 
+    border-color: #667eea; 
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-textarea { min-height: 100px; resize: vertical; }
+
+.form-hint { 
+    font-size: 0.85rem; 
+    color: #718096; 
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+.progress-section { margin-top: 2rem; }
+
+.progress-item { margin-bottom: 1.5rem; }
+
+.progress-header { 
+    display: flex; 
+    justify-content: space-between; 
+    margin-bottom: 0.5rem;
+}
+
+.progress-label { font-weight: 500; color: #4a5568; }
+.progress-percent { font-weight: 600; color: #667eea; }
+
+.progress-bar { 
+    height: 8px; 
+    background: #e2e8f0; 
+    border-radius: 4px; 
+    overflow: hidden;
+}
+
+.progress-fill { 
+    height: 100%; 
+    background: linear-gradient(90deg, #667eea, #764ba2); 
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.countdown { 
+    background: #f7fafc; 
+    padding: 1rem; 
+    border-radius: 8px; 
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.countdown-days { 
+    font-size: 2rem; 
+    font-weight: 700; 
+    color: #667eea; 
+    margin-bottom: 0.25rem;
+}
+
+.countdown-label { color: #718096; font-size: 0.9rem; }
+
+.button-group { 
+    display: flex; 
+    gap: 1rem; 
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.btn { 
+    padding: 0.75rem 1.5rem; 
+    border-radius: 6px; 
+    font-size: 1rem; 
+    font-weight: 500; 
+    cursor: pointer; 
+    border: none; 
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-primary { 
+    background: #667eea; 
+    color: white;
+}
+
+.btn-primary:hover { background: #5a67d8; }
+
+.btn-secondary { 
+    background: #e2e8f0; 
+    color: #4a5568;
+}
+
+.btn-secondary:hover { background: #cbd5e0; }
+
+.btn-success { 
+    background: #48bb78; 
+    color: white;
+}
+
+.btn-success:hover { background: #38a169; }
+
+.btn:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed;
+}
+
+.loading { 
+    text-align: center; 
+    padding: 2rem; 
+    color: #718096;
+}
+
+.error-message { 
+    background: #fed7d7; 
+    color: #742a2a; 
+    padding: 1rem; 
+    border-radius: 6px; 
+    margin-bottom: 1rem;
+}
+
+.success-message { 
+    background: #c6f6d5; 
+    color: #22543d; 
+    padding: 1rem; 
+    border-radius: 6px; 
+    margin-bottom: 1rem;
+}
+
+.sync-info { 
+    background: #f7fafc; 
+    padding: 0.75rem; 
+    border-radius: 6px; 
+    margin-top: 1rem; 
+    font-size: 0.9rem; 
+    color: #718096;
+}
+
+.edit-icon { color: #667eea; cursor: pointer; }
+.lock-icon { color: #718096; }
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .profile-header { flex-direction: column; text-align: center; }
+    .profile-meta { justify-content: center; }
+    .profile-sections { grid-template-columns: 1fr; }
+}
+
+/* Header actions */
+.profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-6);
+}
+
+.header-actions {
+    margin-left: auto;
+    padding-left: var(--space-6);
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .header-actions {
+        margin-left: 0;
+        padding-left: 0;
+        margin-top: var(--space-4);
+    }
+}
+
+/* Profile actions button styling */
+.profile-actions {
+    margin-top: var(--space-4);
+}
+
+.profile-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.profile-actions .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 768px) {
+    .profile-actions {
+        text-align: center;
+    }
+}
+/* ===== HEADER ACTIONS & CHAT BUTTON ===== */
+/* Header actions container */
+.header-actions {
+    margin-left: auto;
+    padding-left: 2rem;
+}
+
+/* Chat button styling */
+.header-actions a.chat-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white !important;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.header-actions a.chat-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
+
+.header-actions a.chat-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Remove the debug border now that we know it works */
+/* .header-actions a.chat-button {
+    border: 2px solid red !important;
+} */
+
+/* Progress values styling */
+.progress-values {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.progress-values .baseline-value {
+    color: #666;
+}
+
+.progress-values .current-value {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.progress-values .target-value {
+    color: #10b981;
+}
+
+.progress-values .arrow {
+    color: #94a3b8;
+    margin: 0 0.25rem;
+}
+
+/* Re-baseline section */
+.rebaseline-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.rebaseline-hint {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.5rem;
+}            
+            
+/* ===== Progress Section Improvements ===== */
+
+/* Headers styling */
+.value-headers {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding: 0 0.5rem;
+}
+
+.header {
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+    text-align: center;
+}
+
+.baseline-header {
+    color: #64748b; /* Gray for baseline */
+}
+
+.current-header {
+    color: #667eea; /* Blue for current */
+}
+
+.target-header {
+    color: #10b981; /* Green for target */
+}
+
+.arrow-header {
+    color: #94a3b8;
+    flex: 0.5;
+    font-size: 1.2rem;
+}
+
+/* Values row */
+.progress-values {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.progress-values .value {
+    flex: 1;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.5rem;
+}
+
+.progress-values .baseline-value {
+    color: #64748b;
+}
+
+.progress-values .current-value {
+    color: #667eea;
+}
+
+.progress-values .target-value {
+    color: #10b981;
+}
+
+.progress-values .arrow {
+    color: #94a3b8;
+    flex: 0.5;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 300;
+}
+
+/* Gap metrics */
+.gap-metrics {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.gap-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.gap-label {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.gap-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.gap-value.positive {
+    color: #10b981; /* Green for positive (gaining FTP) */
+}
+
+.gap-value.negative {
+    color: #ef4444; /* Red for negative (losing weight) */
+}
+
+.gap-value.weekly {
+    color: #8b5cf6; /* Purple for weekly targets */
+}            

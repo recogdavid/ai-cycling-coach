@@ -1,71 +1,225 @@
-# 🚴 Dave's AI Cycling Coach
+# 🚴 Dave's AI Cycling Coach v4.1
 
-An AI-powered cycling training platform that generates personalized training plans using local AI models, Strava integration, and evidence-based RAG (Retrieval-Augmented Generation) system.
+An AI-powered conversational cycling coaching platform that provides evidence-based, personalized coaching through natural conversation with actionable feedback loops.
 
-## 🌟 Features
+## 🌟 Core Philosophy Shift
 
-- **Strava OAuth Integration** - Secure authentication and activity tracking
-- **AI-Generated Training Plans** - Personalized weekly plans based on your goals, FTP, and schedule
-- **RAG-Enhanced Coaching** - Training plans based on established methodology (Joe Friel, British Cycling, etc.)
-- **Event-Based Periodization** - Automatic phase progression (Base → Build → Peak → Taper)
-- **Workout File Export** - Download workouts as .zwo (Zwift) or .fit (Garmin/Wahoo) files
-- **Privacy-First Design** - All AI processing runs locally with Ollama (no external API calls)
-- **Constraint-Aware Planning** - Respects your available hours and unavailable days
+**From:** Static plan generation → **To:** Dynamic coaching conversations  
+**From:** One-time plan creation → **To:** Continuous adaptation loop  
+**From:** Data retrieval Q&A → **To:** Coach-led recommendations with actions  
+**From:** Plain text responses → **To:** Rich, structured responses with actionable buttons  
+**From:** Hardcoded athlete IDs → **To:** Secure authentication with invite codes
 
-## 🏗️ Architecture
+## 🎯 Key Features
+
+### 🤖 **AI Agent Chat System**
+- **Conversational Coaching**: Natural conversations with Dave, your AI coach
+- **Actionable Responses**: Rich formatting with buttons for workflow integration
+- **Evidence-Informed**: RAG-enhanced responses based on established training methodology
+- **Dynamic Tool Selection**: AI agent intelligently selects from available tools
+
+### 🔐 **Secure Authentication**
+- **Invite Code System**: Controlled access with unique invite codes
+- **Cookie-Based Sessions**: Secure HTTP-only cookies with SameSite protection
+- **Strava OAuth Integration**: Seamless connection to Strava for activity tracking
+- **No Hardcoded IDs**: Complete removal of hardcoded athlete IDs
+
+### 📊 **Athlete Profile Management**
+- **Three-Point Progress Tracking**: Baseline → Current → Target visualization
+- **Formatted Zone Display**: Clear, readable power and heart rate zones
+- **Goals Management**: Editable target fields with coach guidance
+- **Re-baseline Functionality**: Manual trigger with confirmation
+
+### 📅 **Training Management**
+- **AI-Generated Training Plans**: Personalized weekly plans based on goals, FTP, and schedule
+- **Training Calendar**: Interactive calendar with workout details and feedback
+- **Workout File Export**: Download workouts as .zwo (Zwift) or .fit (Garmin/Wahoo) files
+- **Feedback Integration**: Rate workouts and provide notes for AI adaptation
+
+### 🔄 **Complete Feedback Loop**
+- **Plan → Execute → Analyze → Adjust**: Continuous coaching cycle
+- **Compliance Tracking**: Compare planned vs. actual performance
+- **Adaptive Recommendations**: AI suggests adjustments based on feedback
+- **Progress Visualization**: Clear tracking toward goals
+
+## 🏗 Architecture v4.1
 
 ```
-┌─────────────┐
-│   Browser   │
-└──────┬──────┘
-       │ HTTPS
-       ↓
-┌─────────────┐     ┌──────────────┐
-│    Caddy    │────→│  Static HTML │
-│ (Proxy/SSL) │     │   /web/html/ │
-└──────┬──────┘     └──────────────┘
-       │
-       ↓
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│     n8n     │────→│  PostgreSQL  │────→│  pgvector    │
-│ (Workflows) │     │  (Database)  │     │     (RAG)    │
-└──────┬──────┘     └──────────────┘     └──────────────┘
-       │
-       ↓
-┌─────────────┐     ┌──────────────┐
-│   Ollama    │────→│ deepseek-r1  │
-│  (AI Host)  │     │    (Model)   │
-└─────────────┘     └──────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                     Frontend (Browser)                      │
+│  • Landing Page (index.html)                                │
+│  • Onboarding (onboarding.html)                             │
+│  • Dashboard (dashboard.html)                               │
+│  • Chat Interface (coach-chat.html)                         │
+│  • Training Calendar (training-calendar.html)               │
+│  • Athlete Profile (profile.html)                           │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ HTTPS
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│                     Caddy Reverse Proxy                     │
+│  • Static file serving (/web/html/)                         │
+│  • Automatic SSL (Let's Encrypt)                            │
+│  • Webhook routing to n8n                                   │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│                      n8n Workflow Engine                    │
+│  • AI Agent Chat (conversational coaching)                  │
+│  • Authentication & Session Management                      │
+│  • Training Plan Generation (RAG-enhanced)                  │
+│  • Strava Integration & Sync                                │
+│  • Workout File Generation                                  │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ↓               ↓               ↓
+┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+│  PostgreSQL   │ │    Ollama     │ │   Strava API  │
+│  • Athlete Data│ │  • DeepSeek   │ │  • Activities │
+│  • Workouts    │ │  • Embeddings │ │  • Auth       │
+│  • RAG Vectors │ └───────────────┘ └───────────────┘
+│  • Invite Codes│
+└───────────────┘
 ```
 
-## 📋 Prerequisites
+## 📂 Project Structure
 
-- Ubuntu 24.04 (or similar Linux)
-- Docker & Docker Compose
-- Domain name with DNS configured
-- Strava API application credentials
-
-## 🚀 Quick Start
-
-### 1. Clone Repository
-
-```bash
-cd ~
-git clone https://github.com/yourusername/ai-cycling-coach.git
-cd ai-cycling-coach
+```
+~/ai-cycling-coach/
+├── docker-compose.yml          # Container orchestration
+├── .env                        # Environment variables
+├── README.md                   # This file
+├── web/                        # Static web files
+│   └── html/
+│       ├── index.html          # Landing page
+│       ├── onboarding.html     # 4-step onboarding
+│       ├── dashboard.html      # Main dashboard
+│       ├── coach-chat.html     # AI conversational chat
+│       ├── training-calendar.html # Interactive calendar
+│       ├── profile.html        # Athlete profile & progress
+│       ├── invite.html         # Invite code entry
+│       ├── css/                # Stylesheets
+│       │   ├── global.css      # Global styles
+│       │   ├── chat.css        # Chat interface styles
+│       │   ├── profile.css     # Profile page styles
+│       │   └── calendar-styles.css
+│       └── js/                 # JavaScript
+│           ├── global.js       # Shared utilities
+│           ├── chat.js         # Chat functionality
+│           ├── profile.js      # Profile management
+│           └── onboarding-core.js
+├── workflows/                  # n8n workflow exports
+│   ├── AI Agent Chat (4).json  # Conversational AI coaching
+│   ├── Strava API Callback (5).json
+│   ├── Athletes API - Get Workouts.json
+│   ├── RAG Training Plan Generator.json
+│   ├── Generate AI Feedback (Ollama).json
+│   ├── Register Athlete.json
+│   └── invite code validation.json
+├── scripts/                    # Utility scripts
+│   └── export-workflows-cli.sh # Workflow backup
+├── docs/                       # Documentation
+│   └── HANDOVER.md            # Detailed technical notes
+├── data/                      # Database data
+├── migrations/                # Database migrations
+├── nginx/                     # Nginx configuration
+├── certbot/                   SSL certificates
+└── backups/                   # System backups
 ```
 
-### 2. Configure Environment
+## 🔄 Core Coaching Scenarios
 
-```bash
-# Copy example environment file
-cp .env.example .env
+### 1. **Planning Conversations**
+- **Athlete**: "What's my plan for the week?"
+- **Coach**: Analyzes phase/goals → Recommends hours/TSS → Presents action buttons
 
-# Edit with your credentials
-vim .env
-```
+### 2. **Adaptation Conversations**
+- **Athlete**: "It's too cold to train outdoors"
+- **Coach**: Suggests indoor alternatives → Maintains training stress → Creates .fit file
 
-Required environment variables:
+### 3. **Feedback Loop Conversations**
+- **After ride**: Coach analyzes compliance → Explains physiological impact → Suggests adjustments
+- **Weekly**: Reviews compliance trends → Shows progress → Adjusts next week
+- **Monthly**: Analyzes block progress → Updates goals → Generates next block
+
+### 4. **Substitution Conversations**
+- **Athlete**: "Can I substitute for a chain gang?"
+- **Coach**: Compares physiological impact → Recommends adjustments → Updates plan
+
+## 🛠 Tool Architecture
+
+### **Data Retrieval Tools**
+- `get_athlete_profile` - FTP, weight, goals, availability
+- `get_training_phase` - Current phase, rationale, progress
+- `get_recent_rides` - Last 5 rides with TSS, power, HR
+- `search_training_knowledge` - Evidence-based principles (pgvector RAG)
+
+### **Analysis Tools**
+- `analyze_session_compliance` - Planned vs. actual performance
+- `calculate_training_adaptations` - Physiological impact mapping
+- `track_goal_progress` - Progress toward FTP/event goals
+- `analyze_fitness_trends` - CTL, ATL, TSB tracking
+
+### **Action Tools**
+- `suggest_workout_adaptation` - Weather/schedule alternatives
+- `generate_weekly_schedule` - Calls existing workflow
+- `create_workout_suggestion` - Generates .fit via existing workflow
+
+## 🔐 Authentication Flow
+
+1. **Invite Code Entry**: User enters unique invite code at `/invite.html`
+2. **Code Validation**: n8n workflow validates code and creates session
+3. **Strava OAuth**: User connects Strava account (enabled after code validation)
+4. **Session Creation**: Secure HTTP-only cookie with athlete ID
+5. **Onboarding**: 4-step process to set goals, FTP, and event
+6. **Dashboard Access**: Full access to coaching features
+
+## 🗄 Database Schema (Key Tables)
+
+### **athletes**
+- `id`, `strava_id`, `firstname`, `lastname`, `profile_picture`
+- `ftp`, `weight`, `power_zones`, `hr_zones`
+- `target_ftp`, `target_weight`, `baseline_ftp`, `baseline_weight`
+- `strava_access_token`, `strava_refresh_token`, `strava_token_expires`
+
+### **invite_codes**
+- `code` (unique), `created_by`, `created_at`, `expires_at`, `used_by`, `used_at`
+
+### **training_plans**
+- `id`, `athlete_id`, `week_start_date`, `total_tss`, `phase`, `status`
+
+### **planned_workouts**
+- `id`, `training_plan_id`, `athlete_id`, `scheduled_date`, `workout_type`
+- `description`, `intervals_json`, `tss`, `duration_minutes`
+- `athlete_feedback_rpe`, `athlete_feedback_notes`
+
+### **training_knowledge** (RAG)
+- `id`, `content`, `source`, `embedding` (pgvector)
+
+## 🤖 AI & RAG System
+
+### **Models Used**
+- **Primary**: `deepseek-r1:1.5b` - Fast inference, good structured output
+- **Embedding**: `nomic-embed-text:latest` - High-quality sentence embeddings
+
+### **RAG Knowledge Base**
+Training methodology embedded from:
+- Joe Friel's Training Bible
+- British Cycling guidelines
+- TrainerRoad methodology
+- Sports science literature
+
+### **How RAG Works in Conversations**
+1. Semantic search finds relevant training guidance
+2. Top 3-5 passages injected into AI prompt
+3. AI generates evidence-based responses
+4. Result: Coaching based on established methodology
+
+## ⚙ Configuration
+
+### **Environment Variables (.env)**
 ```bash
 # Strava API
 STRAVA_CLIENT_ID=your_client_id
@@ -78,380 +232,142 @@ DB_DATABASE=aicoach_db
 
 # Domain
 DOMAIN=yourdomain.com
+
+# Session
+SESSION_SECRET=your_session_secret
 ```
 
-### 3. Start Services
-
-```bash
-docker compose up -d
-```
-
-This will start:
-- PostgreSQL (with pgvector extension)
-- n8n (workflow automation)
-- Ollama (local AI)
-- Caddy (reverse proxy with automatic SSL)
-
-### 4. Initialize Database
-
-```bash
-# Access PostgreSQL
-docker exec -it ai-cycling-coach-postgres-1 psql -U aicoach_user -d aicoach_db
-
-# Run schema initialization
-\i /path/to/schema.sql
-```
-
-### 5. Load AI Model
-
-```bash
-# Pull the model
-docker exec ollama ollama pull deepseek-r1:1.5b
-
-# Verify it's loaded
-docker exec ollama ollama list
-```
-
-### 6. Import n8n Workflows
-
-1. Access n8n UI: `https://yourdomain.com/n8n/`
-2. Go to Settings → Import
-3. Import all workflows from `workflows/2025-11-18/`
-4. Activate each workflow
-
-### 7. Configure Strava API
-
-1. Go to https://www.strava.com/settings/api
-2. Create application with:
-   - **Authorization Callback Domain:** `yourdomain.com`
-   - **Authorization Callback URL:** `https://yourdomain.com/webhook/api/strava/callback`
-3. Note your Client ID and Client Secret
-4. Update `.env` file with credentials
-
-### 8. Test the Application
-
-Visit `https://yourdomain.com` and:
-1. Click "Sign Up"
-2. Complete onboarding form
-3. Authorize Strava
-4. View your dashboard
-5. Generate a training plan
-
-## 📂 Project Structure
-
-```
-~/ai-cycling-coach/
-├── docker-compose.yml          # Container orchestration
-├── .env                        # Environment variables (not in git)
-├── README.md                   # This file
-├── web/
-│   └── html/
-│       ├── index.html          # Landing page
-│       ├── onboarding.html     # Registration form
-│       ├── dashboard.html      # Main dashboard
-│       └── assets/             # Images, logos, etc.
-├── workflows/
-│   └── 2025-11-18/            # n8n workflow exports
-│       ├── Strava_·_API_·_Connect.json
-│       ├── Strava_API_Callback.json
-│       ├── Athletes_·_API_·_Register.json
-│       ├── RAG_Training_Plan_Generator.json
-│       └── Download_Workout_File.json
-├── scripts/
-│   └── export-workflows-cli.sh # Workflow backup script
-├── fit-generator/              # Python FIT file generation
-│   ├── generate_fit.py
-│   └── requirements.txt
-└── docs/
-    ├── HANDOVER.md             # Detailed session notes
-    └── API.md                  # API documentation
-```
-
-## 🗄️ Database Schema
-
-### Core Tables
-
-**athletes**
-- Stores athlete profiles, FTP, goals, Strava credentials
-
-**training_plans**
-- Parent records for generated training plans
-
-**planned_workouts**
-- Individual workout records with intervals
-
-**training_knowledge** (RAG)
-- Embedded training methodology for AI context
-
-See `docs/HANDOVER.md` for complete schema details.
-
-## 🔄 Key Workflows
-
-### 1. Authentication Flow
-- User authorizes via Strava OAuth
-- Tokens stored securely in database
-- Cookie-based session management
-
-### 2. Training Plan Generation
-1. User clicks "Generate Plan" on dashboard
-2. n8n fetches athlete data (FTP, goals, constraints)
-3. Calculates weekly TSS distribution
-4. AI generates week structure with RAG context
-5. Loops through each day to create specific workouts
-6. Inserts workouts into database
-7. Dashboard polls and displays results
-
-### 3. Workout File Download
-- User clicks download button (.zwo or .fit)
-- n8n fetches workout data
-- Generates file in requested format
-- Returns file for download
-
-## 🤖 AI & RAG System
-
-### Models Used
-- **Primary:** `deepseek-r1:1.5b` - Fast inference, good structured output
-- **Embedding:** `all-MiniLM-L6-v2` - 384-dimensional sentence embeddings
-
-### RAG Knowledge Base
-Training methodology embedded from:
-- Joe Friel's Training Bible
-- British Cycling guidelines
-- TrainerRoad methodology
-- Sports science literature
-
-### How RAG Works
-1. Semantic search finds relevant training guidance
-2. Top 3-5 passages injected into AI prompt
-3. AI generates workouts following evidence-based principles
-4. Result: Plans based on established methodology, not random generation
-
-## ⚙️ Configuration
-
-### Docker Compose Services
-
+### **Docker Compose Services**
 ```yaml
 services:
-  postgres:     # Database with pgvector
-  n8n:          # Workflow engine
-  caddy:        # Reverse proxy + SSL
-  ollama:       # Local AI inference
-```
-
-### Caddy Reverse Proxy
-
-```
-yourdomain.com {
-  # Static files
-  root * /var/www/html
-  file_server
-  
-  # n8n webhooks
-  reverse_proxy /webhook/* n8n:5678
-  
-  # n8n UI
-  reverse_proxy /n8n/* n8n:5678
-}
-```
-
-### n8n Environment
-
-Key settings in `docker-compose.yml`:
-```yaml
-environment:
-  - DB_TYPE=postgresdb
-  - DB_HOST=postgres
-  - N8N_HOST=${DOMAIN}
-  - WEBHOOK_URL=https://${DOMAIN}
-  - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
-  - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+  postgres:     # Database with pgvector extension
+  n8n:          # Workflow automation engine
+  caddy:        # Reverse proxy + automatic SSL
+  ollama:       # Local AI inference (DeepSeek + embeddings)
 ```
 
 ## 🔧 Maintenance
 
-### Backup Database
-
+### **Backup Database**
 ```bash
-# Create backup
 docker exec ai-cycling-coach-postgres-1 pg_dump -U aicoach_user aicoach_db > backup_$(date +%Y%m%d).sql
-
-# Restore backup
-docker exec -i ai-cycling-coach-postgres-1 psql -U aicoach_user -d aicoach_db < backup_20251122.sql
 ```
 
-### Export Workflows
-
+### **Export Workflows**
 ```bash
 cd ~/ai-cycling-coach/scripts
 ./export-workflows-cli.sh
 ```
 
-Creates dated backup in `workflows/YYYY-MM-DD/`
-
-### View Logs
-
+### **View Logs**
 ```bash
 # n8n logs
 docker logs ai-cycling-coach-n8n-1 --tail 100 -f
-
-# PostgreSQL logs
-docker logs ai-cycling-coach-postgres-1 --tail 50
-
-# Ollama logs
-docker logs ollama --tail 50
 
 # All services
 docker compose logs -f
 ```
 
-### Update AI Model
+## 🚧 Implementation Status (v4.1)
 
-```bash
-# Pull latest model
-docker exec ollama ollama pull deepseek-r1:1.5b
+### ✅ **Completed**
+- Database schema analysis and planning
+- Goals update n8n workflow (`/athletes/update-goals`)
+- Database columns added (`target_*`, `baseline_*`)
+- Profile page basic structure
+- Invite code authentication system
+- Cookie-based session management
 
-# List installed models
-docker exec ollama ollama list
+### 🟡 **In Progress**
+- Zone formatting implementation
+- Progress display logic
+- AI Agent Chat integration
+- Rich response formatting with buttons
 
-# Remove old model
-docker exec ollama ollama rm model_name
-```
+### ⏳ **Next Up**
+- Create `invite_codes` table
+- Build onboarding page with invite validation
+- Create new n8n onboarding callback
+- Remove remaining hardcoded athlete IDs
 
-## 🐛 Troubleshooting
+### 📋 **Pending**
+- Re-baseline functionality
+- Advanced progress visualizations
+- Mobile responsiveness polish
+- Comprehensive testing
 
-### Common Issues
+## 📊 Monitoring & Health Checks
 
-**"Cannot connect to database"**
-```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# Restart if needed
-docker restart ai-cycling-coach-postgres-1
-```
-
-**"Ollama model not found"**
-```bash
-# Pull the model
-docker exec ollama ollama pull deepseek-r1:1.5b
-
-# Verify
-docker exec ollama ollama list
-```
-
-**"Strava OAuth error"**
-- Verify redirect URI matches exactly in Strava app settings
-- Check STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET in .env
-- Ensure domain has valid SSL certificate
-
-**"Workouts not generating"**
-- Check n8n executions for errors: `https://yourdomain.com/n8n/executions`
-- Verify athlete data exists: `SELECT * FROM athletes WHERE id = X;`
-- Check Ollama is responding: `curl http://localhost:11434/api/tags`
-
-See `docs/HANDOVER.md` for detailed troubleshooting guide.
-
-## 📊 Monitoring
-
-### Health Checks
-
-```bash
-# Check all containers
-docker ps
-
-# Check resource usage
-docker stats
-
-# Test endpoints
-curl https://yourdomain.com
-curl https://yourdomain.com/webhook/health
-```
-
-### Database Queries
-
+### **Database Queries**
 ```sql
--- Active athletes
-SELECT COUNT(DISTINCT athlete_id) 
-FROM planned_workouts 
-WHERE created_at > NOW() - INTERVAL '30 days';
+-- Active athletes with sessions
+SELECT COUNT(DISTINCT athlete_id) FROM sessions WHERE expires_at > NOW();
 
--- Plans generated today
-SELECT COUNT(*) 
-FROM training_plans 
-WHERE DATE(created_at) = CURRENT_DATE;
+-- Plans generated this month
+SELECT COUNT(*) FROM training_plans WHERE created_at > NOW() - INTERVAL '30 days';
 
--- Average plan generation time
--- (check n8n execution logs)
+-- Invite code usage
+SELECT COUNT(*) as total, COUNT(used_by) as used FROM invite_codes;
 ```
 
-## 🔒 Security
+### **Health Endpoints**
+- `https://yourdomain.com` - Landing page
+- `https://yourdomain.com/webhook/health` - System health
+- `https://yourdomain.com/n8n/` - n8n admin interface
 
-### Current Measures
+## 🔒 Security Measures
+
+### **Implemented**
 - ✅ HTTPS with automatic SSL (Let's Encrypt)
-- ✅ Secure cookies (Secure, SameSite=Lax)
+- ✅ Secure cookies (HTTP-only, Secure, SameSite=Lax)
 - ✅ Environment variable secrets
+- ✅ Invite code access control
+- ✅ No hardcoded athlete IDs
 - ✅ Database password protection
-- ✅ Same-origin policy (no CORS issues)
 
-### Recommended Improvements
-- [ ] Add API rate limiting
-- [ ] Implement session timeouts
-- [ ] Add CSRF protection
-- [ ] Encrypt Strava tokens at rest
-- [ ] Add audit logging
-- [ ] Input sanitization/validation
+### **Planned**
+- [ ] API rate limiting
+- [ ] Session timeouts
+- [ ] CSRF protection
+- [ ] Encrypted Strava tokens at rest
+- [ ] Audit logging
 
-## 🚧 Known Issues
+## 🛣 Roadmap
 
-1. **Event data not influencing plans** - Prompt construction needs updating
-2. **Plans lack variety** - Despite temperature 0.8, plans too similar
-3. **Athletes Register workflow** - Doesn't accept new onboarding fields yet
-4. **No profile editing** - Users can't update FTP, goals, etc. after registration
-
-See `docs/HANDOVER.md` Priority sections for detailed fix plans.
-
-## 🛣️ Roadmap
-
-### Phase 2: Activity Analysis
-- Sync completed workouts from Strava
-- Compare planned vs. actual performance
-- Adaptive plan adjustments based on compliance
-
-### Phase 3: Advanced Periodization
+### **Phase 2: Enhanced Coaching**
 - Multi-week plan generation
 - Automatic phase transitions
-- Workout library with templates
+- Advanced compliance analytics
+- Social features (clubs/teams)
 
-### Phase 4: Mobile App
-- iOS/Android native app
-- Bluetooth trainer integration
+### **Phase 3: Mobile Experience**
+- Progressive Web App (PWA)
+- Mobile-optimized interfaces
 - Offline workout support
+- Push notifications
 
-### Phase 5: Social Features
-- Training clubs/teams
-- Shared workouts
-- Coach dashboard for managing athletes
-
-See `docs/HANDOVER.md` Future Roadmap for detailed feature descriptions.
+### **Phase 4: Advanced Analytics**
+- Machine learning predictions
+- Injury risk assessment
+- Performance benchmarking
+- Race day recommendations
 
 ## 📚 Documentation
 
-- **[HANDOVER.md](docs/HANDOVER.md)** - Detailed session notes, technical deep dive
-- **[API.md](docs/API.md)** - API endpoint documentation (TODO)
+- **[HANDOVER.md](docs/HANDOVER.md)** - Detailed technical notes and session history
+- **[Design Spec v4.1](Dave's AI Cycle Coach - Updated Design v4.1.md)** - Current implementation blueprint
 - **[Strava API Docs](https://developers.strava.com/docs/)** - Strava integration reference
 - **[n8n Docs](https://docs.n8n.io/)** - Workflow automation guide
-- **[Ollama Docs](https://github.com/ollama/ollama)** - Local AI setup
-- **[pgvector Docs](https://github.com/pgvector/pgvector)** - Vector database extension
 
 ## 🤝 Contributing
 
-This is currently a personal project, but contributions welcome! Areas that need help:
+This is a personal project with active development. Areas that could benefit from contributions:
 
-1. **Frontend Design** - Improve UI/UX
-2. **Testing** - Add automated tests
-3. **Documentation** - Expand guides and tutorials
-4. **Training Knowledge** - Add more methodology to RAG
-5. **Mobile App** - Start React Native development
+1. **Frontend Design** - Improve UI/UX and mobile responsiveness
+2. **Testing** - Add automated tests for workflows and interfaces
+3. **Documentation** - Expand user guides and API documentation
+4. **Training Knowledge** - Add more methodology to RAG system
+5. **Security** - Implement additional security measures
 
 ## 📄 License
 
@@ -460,24 +376,15 @@ MIT License - See LICENSE file for details
 ## 🙏 Acknowledgments
 
 - **Joe Friel** - Training methodology foundation
-- **Strava** - Activity tracking platform
-- **n8n** - Workflow automation
+- **Strava** - Activity tracking and API
+- **n8n** - Workflow automation platform
 - **Ollama** - Local AI inference
+- **DeepSeek** - AI model provider
 - **pgvector** - Vector similarity search
-
-## 💬 Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Email: david@dabosch.fit
-- See troubleshooting guide in `docs/HANDOVER.md`
 
 ## 📈 Status
 
-**Current Version:** MVP v1.0  
-**Status:** ⚠️ Beta - Active development  
-**Last Updated:** November 22, 2025
+**Current Version:** v4.1 (Conversational AI Coaching)  
+**Status:** 🚧 Active Development  
+**Last Updated:** February 2025
 
----
-
-**Built with ❤️ for cyclists who want evidence-based, personalized training plans without sharing their data with external AI services.**
