@@ -1,0 +1,247 @@
+{
+  "updatedAt": "2026-04-27T19:16:33.867Z",
+  "createdAt": "2026-04-27T17:09:27.648Z",
+  "id": "czbyhFPiv6AD75Si",
+  "name": "Embed Chat Messages",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "77ca9a9d-814f-4ea7-803d-bf262255fba9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id::INTEGER as athlete_id, message->>'type' as msg_type, message->>'content' as content, created_at\nFROM n8n_chat_histories\nWHERE created_at > NOW() - INTERVAL '10 minutes'\n  AND session_id ~ '^\\d+$'\n  AND message->>'type' IN ('human', 'ai')\nORDER BY id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "54c9fcf4-8680-4ad1-a743-ba2126a7da0f",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  let content = item.json.content || '';\n  let role = item.json.msg_type === 'human' ? 'user' : 'assistant';\n  \n  // Clean AI messages - remove tool output prefix\n  if (role === 'assistant' && content.startsWith('[Used tools:')) {\n    const match = content.match(/\\] (.*)/s);\n    if (match) {\n      content = match[1].trim();\n    }\n  }\n  \n  return {\n    json: {\n      source_id: item.json.id,\n      athlete_id: item.json.athlete_id,\n      role: role,\n      content: content,\n      created_at: item.json.created_at\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "dac98799-0600-427d-947f-84526e594bdc",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ \n  JSON.stringify({ \n    model: \"nomic-embed-text\", \n    prompt: $json.content \n  }) \n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "bcab5c69-90a3-4150-9c8c-94a8e4c86116",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        864,
+        -128
+      ],
+      "id": "d1e49461-5b22-4d01-96b0-e4611d7ced7d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO chat_messages (athlete_id, role, content, embedding, metadata)\nVALUES (\n    {{ $json.athlete_id }},\n    '{{ $json.role }}',\n    '{{ $json.content }}',\n    '{{ JSON.stringify($json.embedding) }}'::vector,\n    jsonb_build_object('athlete_id', {{ $json.athlete_id }})\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1280,
+        -128
+      ],
+      "id": "c02f8fc6-47e6-4f2a-9dc9-209d540a4566",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "Zi3x92xWpotlNSK2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      source_id: item.json.source_id || item.json.id,\n      athlete_id: item.json.athlete_id,\n      role: item.json.role || (item.json.msg_type === 'human' ? 'user' : 'assistant'),\n      content: (item.json.content || '').replace(/'/g, \"''\"),\n      embedding: item.json.embedding,\n      created_at: item.json.created_at\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -128
+      ],
+      "id": "15c6c93c-cc5e-4567-95cf-6b99f4a6260f",
+      "name": "Code in JavaScript2"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "294053a2-fac1-47c3-afca-bbc214f45f5a",
+  "activeVersionId": "294053a2-fac1-47c3-afca-bbc214f45f5a",
+  "versionCounter": 11,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-04-27T17:09:27.648Z",
+      "createdAt": "2026-04-27T17:09:27.648Z",
+      "role": "workflow:owner",
+      "workflowId": "czbyhFPiv6AD75Si",
+      "projectId": "c9ZWKVO1SwZW4DGI",
+      "project": {
+        "updatedAt": "2025-12-01T10:43:01.110Z",
+        "createdAt": "2025-12-01T10:38:40.348Z",
+        "id": "c9ZWKVO1SwZW4DGI",
+        "name": "DAVID ABOSCH <david@recognition-circular.org>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d42b7515-3b9e-4344-96cc-445411ac6ac7"
+      }
+    }
+  ]
+}
