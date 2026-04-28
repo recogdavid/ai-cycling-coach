@@ -1,0 +1,20 @@
+{
+  "name": "invite-code-generator",
+  "version": "1.0.0",
+  "description": "Invite code generator for AI Cycle Coach",
+  "main": "invite-code-generator.js",
+  "scripts": {
+    "generate": "node invite-code-generator.js generate",
+    "generate:5": "node invite-code-generator.js generate 5",
+    "list": "node invite-code-generator.js list",
+    "list-all": "node invite-code-generator.js list-all",
+    "help": "node invite-code-generator.js help"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "pg": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
