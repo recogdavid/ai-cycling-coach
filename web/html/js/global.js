@@ -8,11 +8,41 @@ function getCookie(name) {
     return null;
 }
 
-function setCookie(name, value, days = 30) {
-    const expires = new Date(Date.now() + days * 864e5).toUTCString();
-    document.cookie = `${name}=${value}; expires=${expires}; path=/; Secure; SameSite=Lax`;
+function getCookie(name) {
+    // Try multiple approaches for cross-browser compatibility
+    const cookies = document.cookie;
+    
+    // Standard approach
+    const value = `; ${cookies}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const cookieValue = parts.pop().split(';').shift();
+        console.log(`Found cookie ${name}=${cookieValue}`);
+        return cookieValue;
+    }
+    
+    // Try without leading space (some browsers)
+    const parts2 = cookies.split(`${name}=`);
+    if (parts2.length === 2) {
+        const cookieValue = parts2.pop().split(';').shift();
+        console.log(`Found cookie ${name}=${cookieValue} (no space)`);
+        return cookieValue;
+    }
+    
+    console.log(`Cookie ${name} not found`);
+    return null;
 }
-
+    // Modern browsers: SameSite=Lax (good default)
+    cookieString += '; SameSite=Lax';
+    
+    // Only add Secure flag on HTTPS
+    if (isHttps) {
+        cookieString += '; Secure';
+    }
+    
+    document.cookie = cookieString;
+    console.log(`Set cookie: ${name}=${value} (domain: ${hostname}, Secure: ${isHttps})`);
+}
 function deleteCookie(name) {
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }

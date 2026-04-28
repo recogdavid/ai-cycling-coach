@@ -1,4 +1,23 @@
-// profile.js - Clean version without mock data
+// Save athlete_id to localStorage when profile.html loads
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const athleteId = urlParams.get('athlete_id');
+    if (athleteId) {
+        console.log('✅ Profile page: Saving athlete_id to localStorage:', athleteId);
+        localStorage.setItem('athlete_id', athleteId);
+        
+        // Also try to set cookie for Chrome compatibility
+        try {
+            const isHttps = window.location.protocol === 'https:';
+            let cookieString = `athlete_id=${athleteId}; path=/; max-age=2592000; SameSite=Lax`;
+            if (isHttps) cookieString += '; Secure';
+            document.cookie = cookieString;
+            console.log('✅ Also set cookie:', athleteId);
+        } catch (e) {
+            console.log('Could not set cookie:', e);
+        }
+    }
+})();
 const ATHLETE_INFO_URL = 'https://dabosch.fit/webhook/c29d4bfe-aad8-4fbc-b97f-447b9ac009b9/athletes/get';
 const STRAVA_SYNC_URL = 'https://dabosch.fit/webhook/strava/profile-sync';
 const UPDATE_GOALS_URL = 'https://dabosch.fit/webhook/athletes/update-goals';
@@ -177,11 +196,11 @@ async function loadAthleteGoals(profileData) {
             const goals = {
                 targetEventType: profileData.target_event_type || '',
                 targetEventDate: profileData.target_event_date || '',
-                targetEventDistance: profileData.target_event_distance_km || 120,
-                targetFTP: profileData.target_ftp_watts || 260,
-                targetWeight: profileData.target_weight_kg || 62,
-                weeklyAvailability: profileData.weekly_hours_available || 8,
-                trainingGoals: profileData.training_goal || 'Peak for April 12th race, fitness for Majorca camp, reduce weight'
+                targetEventDistance: profileData.target_event_distance_km || '',
+                targetFTP: profileData.target_ftp_watts || '',
+                targetWeight: profileData.target_weight_kg || '' ,
+                weeklyAvailability: profileData.weekly_hours_available || '',
+                trainingGoals: profileData.training_goal || ''
             };
             
             populateGoalsForm(goals);

@@ -58,7 +58,9 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - ai-coach-net
-      
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1     
   fit-generator:
     build: ./fit-generator
     restart: unless-stopped

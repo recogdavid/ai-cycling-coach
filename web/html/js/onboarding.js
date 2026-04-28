@@ -88,7 +88,7 @@ function connectStrava() {
     // Strava OAuth configuration
     const clientId = '180641';
     const redirectUri = encodeURIComponent('https://dabosch.fit/webhook/api/strava/callback');
-    const scope = 'read,activity:read,profile:read_all';
+    const scope = 'read,activity:read_all,profile:read_all';
     const state = 'onboarding_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 
     // Store state for verification

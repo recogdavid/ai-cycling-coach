@@ -158,6 +158,8 @@
             align-self: flex-start; 
         }
     </style>
+    
+    <!-- REMOVED global.js for now - causing issues -->
 </head>
 <body>
     <div class="chat-wrapper">
@@ -210,15 +212,83 @@
             chatWebhookUrl: 'https://dabosch.fit/webhook/3d33e2d0-15b6-4e51-b26d-c9bc45c94bd3/chat'
         };
         
+        // SIMPLE Cookie utility - no dependencies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        
+        // SIMPLE getAthleteId - NO recursion, NO global.js dependency
         function getAthleteId() {
+            console.log('=== Getting athlete_id ===');
+            
+            // 1. Check localStorage (works in ALL browsers)
+            const storedId = localStorage.getItem('athlete_id');
+            if (storedId) {
+                console.log('✅ Found athlete_id in localStorage:', storedId);
+                return storedId;
+            }
+            
+            // 2. Check cookie
+            const cookieId = getCookie('athlete_id');
+            if (cookieId) {
+                console.log('✅ Found athlete_id in cookie:', cookieId);
+                localStorage.setItem('athlete_id', cookieId); // Save for next time
+                return cookieId;
+            }
+            
+            // 3. Check URL (last resort)
             const urlParams = new URLSearchParams(window.location.search);
-            const athleteId = urlParams.get('athlete_id');
-            if (!athleteId) {
-                console.error('No athlete_id in URL');
-               // Optional: show error to user
-                return null;
-           }
-           return athleteId;
+            const urlId = urlParams.get('athlete_id');
+            if (urlId) {
+                console.log('✅ Found athlete_id in URL:', urlId);
+                localStorage.setItem('athlete_id', urlId); // Save for next time
+                return urlId;
+            }
+            
+            console.error('❌ No athlete_id found');
+            return null;
+        }
+        
+        // Session ID generator
+        function getSessionId(athleteId) {
+            const key = `sessionId_athlete_${athleteId}`;
+            let sessionId = localStorage.getItem(key);
+
+            if (!sessionId) {
+                // Generate new sessionId
+                sessionId = 'athlete-' + athleteId + '-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem(key, sessionId);
+            }   
+
+            return sessionId;
+        }
+        
+        // Get athlete name from database
+        async function getAthleteName(athleteId) {
+            // Try localStorage first
+            const cachedName = localStorage.getItem(`athlete_name_${athleteId}`);
+            if (cachedName) return cachedName;
+        
+            try {
+                const response = await fetch(`https://dabosch.fit/webhook/c29d4bfe-aad8-4fbc-b97f-447b9ac009b9/athletes/get?id=${athleteId}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+                const dataArray = await response.json();
+                if (!dataArray || dataArray.length === 0) throw new Error('No athlete data');
+            
+                const data = dataArray[0];
+                const name = data.name ? data.name.trim() : `Athlete ${athleteId}`;
+            
+                // Cache it
+                localStorage.setItem(`athlete_name_${athleteId}`, name);
+                return name;
+            } catch (error) {
+                console.error('Error fetching athlete name:', error);
+                return `Athlete ${athleteId}`;
+            }
         }
         
         function setupProfileButton() {
@@ -227,19 +297,101 @@
                 profileButton.addEventListener('click', function(e) {
                     e.preventDefault();
                     const athleteId = getAthleteId();
-                    window.location.href = `profile.html?athlete_id=${athleteId}`;
+                    if (athleteId) {
+                        window.location.href = `profile.html?athlete_id=${athleteId}`;
+                    } else {
+                        alert('Please log in first');
+                        window.location.href = 'index.html';
+                    }
                 });
             }
         }
         
         function updateAthleteInfo() {
             const athleteId = getAthleteId();
+            
+            if (!athleteId) {
+                document.getElementById('athleteInfo').innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                    Not logged in
+                `;
+                return;
+            }
+            
             document.getElementById('athleteInfo').innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                 </svg>
                 Athlete ${athleteId}
             `;
+        }
+        
+        function storeMessageInLocalStorage(role, content) {
+            try {
+                const athleteId = getAthleteId();
+                const key = `chat_messages_${athleteId}`;
+                const messages = JSON.parse(localStorage.getItem(key) || '[]');
+                
+                messages.push({
+                    role: role,
+                    content: content,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Keep only last 50 messages
+                if (messages.length > 50) {
+                    messages.splice(0, messages.length - 50);
+                }
+                
+                localStorage.setItem(key, JSON.stringify(messages));
+                console.log(`Stored message in localStorage. Total: ${messages.length}`);
+            } catch (error) {
+                console.error('Error storing message in localStorage:', error);
+            }
+        }
+        
+        function loadMessagesFromLocalStorage() {
+            try {
+                const athleteId = getAthleteId();
+                if (!athleteId) {
+                    console.log('No athlete ID, skipping localStorage load');
+                    return 0;
+                }
+                
+                const key = `chat_messages_${athleteId}`;
+                const messages = JSON.parse(localStorage.getItem(key) || '[]');
+                
+                console.log(`Found $${messages.length} messages in localStorage for athlete $${athleteId}`);
+                
+                // Don't load if we have no messages
+                if (messages.length === 0) {
+                    return 0;
+                }
+                
+                // Clear current messages (except we'll keep the initial greeting)
+                const messagesContainer = document.getElementById('messagesContainer');
+                const initialGreeting = messagesContainer.querySelector('.assistant-message');
+                
+                // Clear container
+                messagesContainer.innerHTML = '';
+                
+                // Add back the initial greeting if it exists
+                if (initialGreeting) {
+                    messagesContainer.appendChild(initialGreeting);
+                }
+                
+                // Add stored messages
+                messages.forEach(msg => {
+                    addMessage(msg.role, msg.content);
+                });
+                
+                return messages.length;
+            } catch (error) {
+                console.error('Error loading messages from localStorage:', error);
+                return 0;
+            }
         }
         
         function scrollToBottom() {
@@ -255,6 +407,17 @@
             messageDiv.textContent = text;
             document.getElementById('messagesContainer').appendChild(messageDiv);
             scrollToBottom();
+            
+            // Store in localStorage (except for typing indicators and empty assistant messages)
+            if (sender !== 'typing') {
+                // Don't store empty assistant messages - they'll be updated later
+                if (sender === 'assistant' && (!text || text.trim() === '')) {
+                    console.log('Skipping storage of empty assistant message');
+                } else {
+                    storeMessageInLocalStorage(sender, text);
+                }
+            }
+            
             return messageDiv;
         }
         
@@ -264,6 +427,14 @@
             const message = inputEl.value.trim();
             
             if (!message) return;
+            
+            // Check if athlete is logged in
+            const athleteId = getAthleteId();
+            if (!athleteId) {
+                alert('Please log in to use the chat. You will be redirected to the login page.');
+                window.location.href = 'index.html';
+                return;
+            }
             
             // Disable input while processing
             inputEl.disabled = true;
@@ -276,25 +447,35 @@
             // Show typing indicator
             document.getElementById('typingIndicator').style.display = 'flex';
             
-            // Create assistant message element for streaming
-            const assistantMessage = addMessage('assistant', '');
+            // Don't create empty assistant message yet
             let fullResponse = '';
+            let assistantMessage = null;  // Will create when we have content
             
             try {
-                const athleteId = getAthleteId();
+                const athleteName = await getAthleteName(athleteId);
                 const response = await fetch(CONFIG.chatWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'sendMessage',
                         chatInput: message,
+                        sessionId: getSessionId(athleteId),
+                        currentDate: new Date().toLocaleDateString('en-GB', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        }),
                         metadata: {
                             athlete_id: athleteId,
-                            user_name: 'Cyclist'
+                            user_name: athleteName,
+                            today_iso: new Date().toISOString().split('T')[0],
+                            current_time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+                            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
                         }
                     })
                 });
-                
+
                 // Read stream incrementally
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -319,7 +500,13 @@
                             // CORRECT FORMAT: type="item", content="text"
                             if (event.type === 'item' && event.content) {
                                 fullResponse += event.content;
-                                assistantMessage.textContent = fullResponse;
+                                
+                                // Create message on first chunk only
+                                if (!assistantMessage) {
+                                    assistantMessage = addMessage('assistant', fullResponse);
+                                } else {
+                                    assistantMessage.textContent = fullResponse;
+                                }
                                 scrollToBottom();
                             }
                         } catch (e) {
@@ -334,7 +521,11 @@
                         const event = JSON.parse(buffer);
                         if (event.type === 'item' && event.content) {
                             fullResponse += event.content;
-                            assistantMessage.textContent = fullResponse;
+                            if (!assistantMessage) {
+                                assistantMessage = addMessage('assistant', fullResponse);
+                            } else {
+                                assistantMessage.textContent = fullResponse;
+                            }
                             scrollToBottom();
                         }
                     } catch (e) {
@@ -344,13 +535,26 @@
                 
                 // If no response was captured, show error
                 if (!fullResponse) {
-                    assistantMessage.textContent = 'No response received. Please try again.';
+                    if (!assistantMessage) {
+                        assistantMessage = addMessage('assistant', 'No response received. Please try again.');
+                    } else {
+                        assistantMessage.textContent = 'No response received. Please try again.';
+                    }
                 }
                 
             } catch (error) {
                 console.error('Error:', error);
-                assistantMessage.textContent = `Error: ${error.message}`;
+                if (!assistantMessage) {
+                    assistantMessage = addMessage('assistant', `Error: ${error.message}`);
+                } else {
+                    assistantMessage.textContent = `Error: ${error.message}`;
+                }
             } finally {
+                // Store complete assistant message if we have content
+                if (fullResponse && fullResponse.trim().length > 0 && assistantMessage) {
+                    storeMessageInLocalStorage('assistant', fullResponse);
+                }
+                
                 // Re-enable input
                 inputEl.disabled = false;
                 sendBtn.disabled = false;
@@ -362,6 +566,10 @@
         function initChat() {
             updateAthleteInfo();
             setupProfileButton();
+            
+            // Load messages from localStorage instead of webhook
+            const loadedCount = loadMessagesFromLocalStorage();
+            console.log(`Loaded ${loadedCount} messages from localStorage`);
             
             const chatInput = document.getElementById('chatInput');
             const sendButton = document.getElementById('sendButton');
@@ -375,6 +583,43 @@
             });
             
             chatInput.focus();
+        }
+        
+        async function loadPreviousMessages() {
+            try {
+                const athleteId = getAthleteId();
+                console.log('Loading previous messages for athlete:', athleteId);
+                
+                const response = await fetch(CONFIG.chatWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'loadPreviousSession',
+                        chatInput: '', // Empty input for loading session
+                        metadata: {
+                            athlete_id: athleteId,
+                            user_name: 'Cyclist'
+                        }
+                    })
+                });
+                
+                if (response.ok) {
+                    // Try to parse as JSON first
+                    try {
+                        const data = await response.json();
+                        console.log('Loaded previous messages:', data);
+                        // We'll handle displaying these messages in the next step
+                    } catch (jsonError) {
+                        // If not JSON, read as text
+                        const text = await response.text();
+                        console.log('Response text:', text);
+                    }
+                } else {
+                    console.error('Failed to load previous messages:', response.status);
+                }
+            } catch (error) {
+                console.error('Error loading previous messages:', error);
+            }
         }
         
         document.addEventListener('DOMContentLoaded', initChat);
